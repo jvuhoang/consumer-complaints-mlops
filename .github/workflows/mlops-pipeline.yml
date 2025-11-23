@@ -263,7 +263,7 @@ jobs:
           export_path = f'models/tfserving/{version}'
           
           print(f"\n3. Saving model to: {export_path}")
-          model.save(export_path, save_format='tf')
+          model.export(export_path)
           print("   ✓ Model saved in SavedModel format")
           
           # Verify saved_model.pb exists
