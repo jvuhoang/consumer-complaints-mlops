@@ -46,11 +46,20 @@ jobs:
           PYTHONPATH: ${{ github.workspace }}
         run: |
           pytest tests/ -v --cov=src --cov-report=term-missing
-          
+
+      - name: Install formatting tools
+        run: |
+          pip install black flake8 isort    
+
       - name: Format code
         run: |
           black .
           isort .
+          
+      - name: Run flake8
+        run: |
+          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+        continue-on-error: true
 
       - name: Commit formatting changes
         run: |
