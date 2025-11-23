@@ -148,7 +148,7 @@ class DataLoader:
         valid_classes = class_counts[class_counts >= 2].index
         df = df[df["target"].isin(valid_classes)]
 
-        print(f"Remaining classes: {df[target_column].nunique()}")
+        print(f"Remaining classes: {df["target"].nunique()}")
 
         # Split train/test
         train_val_df, test_df = train_test_split(
