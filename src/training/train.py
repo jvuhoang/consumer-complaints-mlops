@@ -92,6 +92,7 @@ def main():
     )
 
     df = loader.load_data(target_column=args.target_column, limit=args.sample_size)
+    
 
     logger.info(f"✅ Data loaded: {len(df):,} samples")
 

@@ -139,6 +139,17 @@ class DataLoader:
         unique_targets = df["target"].nunique()
         logger.info(f"  Unique targets: {unique_targets}")
 
+        print("Checking class distribution...")
+
+        class_counts = df["target"].value_counts()
+        print(class_counts)
+
+        # Remove any class with fewer than 2 samples
+        valid_classes = class_counts[class_counts >= 2].index
+        df = df[df["target"].isin(valid_classes)]
+
+        print(f"Remaining classes: {df[target_column].nunique()}")
+
         # Split train/test
         train_val_df, test_df = train_test_split(
             df, test_size=test_size, random_state=random_state, stratify=df["target"]
