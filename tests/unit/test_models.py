@@ -1,7 +1,11 @@
 """Unit tests for model building"""
 import sys
+from pathlib import Path
 import os
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../src')))
+# Add project root to path
+project_root = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(project_root))
+
 import numpy as np
 import pytest
 import tensorflow as tf
