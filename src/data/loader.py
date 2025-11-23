@@ -6,7 +6,6 @@ Loads data from BigQuery and prepares it for training
 import logging
 from typing import Optional, Tuple
 
-import numpy as np
 import pandas as pd
 from google.cloud import bigquery
 from sklearn.model_selection import train_test_split
