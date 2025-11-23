@@ -146,12 +146,9 @@ jobs:
       - name: Authenticate to GCP
         uses: google-github-actions/auth@v2
         with:
-          # 1. Provide the Workload Identity Provider name (e.g., projects/123.../locations/global/workloadIdentityPools/my-pool/providers/my-provider)
           workload_identity_provider: 'projects/398906563232/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
-          
-          # 2. Provide the Service Account email the workflow should impersonate
-          service_account: 'github-actions-sa@project-37461c1b-635d-4cf2-af5.iam.gserviceaccount.com
-      
+          service_account: 'github-actions-sa@project-37461c1b-635d-4cf2-af5.iam.gserviceaccount.com'
+
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
       
