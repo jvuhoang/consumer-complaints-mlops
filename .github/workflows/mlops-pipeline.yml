@@ -223,17 +223,22 @@ jobs:
           # Load the Keras model
           model = tf.keras.models.load_model('models/trained/model.keras')
           
-          # Save in SavedModel format
-          savedmodel_path = 'models/saved_model'
-          os.makedirs(savedmodel_path, exist_ok=True)
-          model.export(savedmodel_path)
+          # Save in TensorFlow SavedModel format (save_format='tf')
+          export_path = 'models/model_export'
+          model.save(export_path, save_format='tf')
           
-          print(f"✅ Model converted to SavedModel format at {savedmodel_path}")
+          print(f"✅ Model exported to SavedModel format at {export_path}")
+          
+          # Verify saved_model.pb exists
+          if os.path.exists(os.path.join(export_path, 'saved_model.pb')):
+            print("✓ saved_model.pb found")
+          else:
+            print("✗ WARNING: saved_model.pb NOT found")
           
           # Show directory structure
           import subprocess
-          result = subprocess.run(['find', savedmodel_path, '-type', 'f'], capture_output=True, text=True)
-          print("Files created:")
+          result = subprocess.run(['find', export_path, '-type', 'f'], capture_output=True, text=True)
+          print("\nFiles created:")
           print(result.stdout)
           EOF
       
@@ -250,33 +255,42 @@ jobs:
         run: |
           # Calculate timestamp and GCS URI
           TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-          GCS_MODEL_URI="gs://${{ secrets.GCS_BUCKET }}/models/production/${TIMESTAMP}"
+          GCS_BASE_PATH="gs://${{ secrets.GCS_BUCKET }}/models/production/${TIMESTAMP}"
           
-          echo "Calculated GCS URI: $GCS_MODEL_URI"
+          echo "Calculated GCS base path: $GCS_BASE_PATH"
           
           # Debug: Show what we're about to upload
-          echo "Local SavedModel structure:"
-          find models/saved_model -type f
+          echo "Local model export structure:"
+          find models/model_export -type f
           
-          # Upload the entire SavedModel directory with proper structure
-          # The -r flag preserves directory structure
-          gsutil -m cp -r models/saved_model "${GCS_MODEL_URI}/"
-          echo "✅ SavedModel uploaded to: ${GCS_MODEL_URI}/saved_model"
+          # Upload the entire model_export directory to GCS
+          # This preserves the directory structure with saved_model.pb
+          gsutil cp -r models/model_export "${GCS_BASE_PATH}/"
           
-          # Verify what was uploaded
+          echo "✅ SavedModel uploaded to: ${GCS_BASE_PATH}/model_export"
+          
+          # Verify what was uploaded and check for saved_model.pb
           echo "Verifying GCS contents:"
-          gsutil ls -r "${GCS_MODEL_URI}/"
+          gsutil ls -r "${GCS_BASE_PATH}/model_export/"
+          
+          # Check if saved_model.pb exists in GCS
+          if gsutil ls "${GCS_BASE_PATH}/model_export/saved_model.pb" &> /dev/null; then
+            echo "✓ saved_model.pb confirmed in GCS"
+          else
+            echo "✗ ERROR: saved_model.pb NOT found in GCS"
+            exit 1
+          fi
           
           # Also upload other artifacts (label encoder, metadata) to a separate location
-          gsutil cp models/trained/label_encoder.pkl "${GCS_MODEL_URI}/artifacts/"
-          gsutil cp models/trained/metadata.json "${GCS_MODEL_URI}/artifacts/"
+          gsutil cp models/trained/label_encoder.pkl "${GCS_BASE_PATH}/artifacts/"
+          gsutil cp models/trained/metadata.json "${GCS_BASE_PATH}/artifacts/"
           echo "✅ Additional artifacts uploaded"
           
           # Register model to Vertex AI Model Registry
-          # Point to the saved_model subdirectory where saved_model.pb lives
+          # Point to the directory containing saved_model.pb
           MODEL_NAME="consumer-complaints-classifier"
           SERVING_IMAGE="us-docker.pkg.dev/vertex-ai/prediction/tf2-cpu.2-11:latest"
-          MODEL_ARTIFACT_URI="${GCS_MODEL_URI}/saved_model"
+          MODEL_ARTIFACT_URI="${GCS_BASE_PATH}/model_export"
           
           echo "Registering model from URI: ${MODEL_ARTIFACT_URI}"
           
