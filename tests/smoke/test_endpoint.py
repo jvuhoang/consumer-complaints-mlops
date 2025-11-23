@@ -3,6 +3,7 @@
 import pytest
 import requests
 
+
 def test_endpoint_responds():
     """Test that endpoint is accessible"""
     # Update with your actual endpoint
