@@ -1,6 +1,5 @@
 # ============================================================================
 # GitHub Actions CI/CD Pipeline for MLOps Consumer Complaints Classifier
-# TensorFlow Serving + Docker Deployment
 # ============================================================================
 
 name: MLOps CI/CD Pipeline
@@ -14,7 +13,6 @@ on:
       - 'src/**'
       - 'tests/**'
       - 'requirements.txt'
-      - 'Dockerfile'
       - '.github/workflows/**'
   
   pull_request:
@@ -37,18 +35,22 @@ on:
         description: 'Training sample size'
         required: false
         default: '5000'
+      deploy_endpoint:
+        description: 'Deploy to endpoint'
+        required: false
+        default: 'true'
+        type: boolean
 
 permissions:
   id-token: write
   contents: read
-  packages: write
   
 env:
   PYTHON_VERSION: '3.11'
   PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
   REGION: 'us-central1'
-  DOCKER_REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}/tfserving-consumer-complaints
+  MODEL_DISPLAY_NAME: 'consumer-complaints-classifier'
+  ENDPOINT_DISPLAY_NAME: 'consumer-complaints-endpoint'
 
 jobs:
   # ==========================================================================
@@ -126,13 +128,16 @@ jobs:
           echo "✅ Unit tests completed" >> $GITHUB_STEP_SUMMARY
 
   # ==========================================================================
-  # JOB 3: MODEL TRAINING
+  # JOB 3: MODEL TRAINING (DEV/STAGING)
   # ==========================================================================
   model-training:
     name: Train Model
     runs-on: ubuntu-latest
     needs: unit-tests
     if: github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/main'
+    
+    outputs:
+      model_version: ${{ steps.set-version.outputs.version }}
     
     steps:
       - name: Checkout code
@@ -148,7 +153,7 @@ jobs:
         run: |
           pip install --upgrade pip
           pip install tensorflow tensorflow-hub
-          pip install google-cloud-bigquery google-cloud-storage
+          pip install google-cloud-bigquery google-cloud-storage google-cloud-aiplatform
           pip install pandas numpy scikit-learn datasets
           pip install -r requirements.txt || true
       
@@ -160,6 +165,13 @@ jobs:
 
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
+      
+      - name: Set model version
+        id: set-version
+        run: |
+          VERSION=$(date +%Y%m%d_%H%M%S)_${GITHUB_SHA:0:7}
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "MODEL_VERSION=$VERSION" >> $GITHUB_ENV
       
       - name: Train model on sample data
         run: |
@@ -185,19 +197,23 @@ jobs:
         run: |
           echo "## Model Training Results" >> $GITHUB_STEP_SUMMARY
           echo "✅ Model training completed" >> $GITHUB_STEP_SUMMARY
+          echo "**Model Version:** ${{ env.MODEL_VERSION }}" >> $GITHUB_STEP_SUMMARY
           if [ -f models/trained/metadata.json ]; then
             echo "### Metadata:" >> $GITHUB_STEP_SUMMARY
             cat models/trained/metadata.json >> $GITHUB_STEP_SUMMARY
           fi
 
   # ==========================================================================
-  # JOB 4: CONVERT MODEL TO SAVEDMODEL FORMAT
+  # JOB 4: UPLOAD MODEL TO GCS
   # ==========================================================================
-  convert-model:
-    name: Convert to SavedModel
+  upload-model:
+    name: Upload Model to GCS
     runs-on: ubuntu-latest
     needs: model-training
     if: github.ref == 'refs/heads/main'
+    
+    outputs:
+      gcs_model_path: ${{ steps.upload.outputs.gcs_path }}
     
     steps:
       - name: Checkout code
@@ -209,334 +225,6 @@ jobs:
           name: trained-model
           path: ./models/trained
       
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-      
-      - name: Install dependencies for model conversion
-        run: |
-          pip install --upgrade pip
-          pip install tensorflow tensorflow-hub
-          pip install -r requirements.txt || true
-      
-      - name: Convert Keras model to SavedModel format
-        run: |
-          cat > convert_model.py << 'EOF'
-          import sys
-          import os
-          
-          # Add the project root to Python path to import custom layers
-          sys.path.insert(0, os.path.abspath('.'))
-          
-          import tensorflow as tf
-          
-          print("=" * 60)
-          print("Converting model to TensorFlow SavedModel format")
-          print("=" * 60)
-          
-          # Import custom layers/classes before loading the model
-          print("\n1. Importing custom layers...")
-          try:
-              from src.models.use_classifier import USEEmbeddingLayer
-              print("   ✓ USEEmbeddingLayer imported successfully")
-              custom_objects = {'USEEmbeddingLayer': USEEmbeddingLayer}
-          except ImportError as e:
-              print(f"   ⚠ Could not import USEEmbeddingLayer: {e}")
-              custom_objects = None
-          
-          # Load the Keras model
-          print("\n2. Loading Keras model from: models/trained/model.keras")
-          if custom_objects:
-              model = tf.keras.models.load_model(
-                  'models/trained/model.keras',
-                  custom_objects=custom_objects
-              )
-          else:
-              model = tf.keras.models.load_model('models/trained/model.keras')
-          
-          print("   ✓ Model loaded successfully")
-          print(f"   Model type: {type(model).__name__}")
-          
-          # Create version directory for TensorFlow Serving
-          # TF Serving expects models in: /models/<model_name>/<version>/
-          version = "1"
-          export_path = f'models/tfserving/{version}'
-          
-          print(f"\n3. Exporting model to: {export_path}")
-          
-          # Use model.export() for Keras 3 - this creates SavedModel format
-          os.makedirs(export_path, exist_ok=True)
-          model.export(export_path)
-          
-          print("   ✓ Model exported in SavedModel format")
-          
-          # Verify saved_model.pb exists
-          print("\n4. Verifying SavedModel structure:")
-          saved_model_pb = os.path.join(export_path, 'saved_model.pb')
-          if os.path.exists(saved_model_pb):
-              size = os.path.getsize(saved_model_pb)
-              print(f"   ✓ saved_model.pb found ({size:,} bytes)")
-          else:
-              print("   ✗ ERROR: saved_model.pb NOT found!")
-              sys.exit(1)
-          
-          # Show directory structure
-          print("\n5. Directory structure for TensorFlow Serving:")
-          import subprocess
-          result = subprocess.run(
-              ['find', 'models/tfserving', '-type', 'f'], 
-              capture_output=True, 
-              text=True
-          )
-          for line in result.stdout.strip().split('\n'):
-              if line:
-                  print(f"   {line}")
-          
-          print("\n" + "=" * 60)
-          print("✅ Model conversion completed successfully")
-          print("=" * 60)
-          EOF
-          
-          python convert_model.py
-      
-      - name: Upload SavedModel artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: savedmodel
-          path: models/tfserving/
-          retention-days: 30
-      
-      - name: Upload label encoder
-        uses: actions/upload-artifact@v4
-        with:
-          name: label-encoder
-          path: models/trained/label_encoder.pkl
-          retention-days: 30
-
-  # ==========================================================================
-  # JOB 5: BUILD AND PUSH DOCKER IMAGE
-  # ==========================================================================
-  build-docker:
-    name: Build TensorFlow Serving Docker Image
-    runs-on: ubuntu-latest
-    needs: convert-model
-    if: github.ref == 'refs/heads/main'
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-      
-      - name: Download SavedModel
-        uses: actions/download-artifact@v4
-        with:
-          name: savedmodel
-          path: models/tfserving/
-      
-      - name: Download label encoder
-        uses: actions/download-artifact@v4
-        with:
-          name: label-encoder
-          path: models/artifacts/
-      
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-      
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.DOCKER_REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      
-      - name: Extract metadata for Docker
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.DOCKER_REGISTRY }}/${{ env.IMAGE_NAME }}
-          tags: |
-            type=sha,prefix={{branch}}-
-            type=raw,value=latest,enable={{is_default_branch}}
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-      
-      - name: Create Dockerfile for TensorFlow Serving
-        run: |
-          cat > Dockerfile.serving <<'EOF'
-          # Use official TensorFlow Serving image as base
-          FROM tensorflow/serving:latest
-          
-          # Copy the SavedModel to the serving directory
-          # TF Serving expects models at /models/<model_name>/<version>/
-          COPY models/tfserving /models/consumer-complaints-classifier
-          
-          # Copy additional artifacts (label encoder, metadata)
-          COPY models/artifacts /models/artifacts
-          
-          # Set environment variables
-          ENV MODEL_NAME=consumer-complaints-classifier
-          ENV MODEL_BASE_PATH=/models/consumer-complaints-classifier
-          
-          # Expose TensorFlow Serving ports
-          # 8500 - gRPC
-          # 8501 - REST API
-          EXPOSE 8500 8501
-          
-          # Health check
-          HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-            CMD curl -f http://localhost:8501/v1/models/${MODEL_NAME} || exit 1
-          
-          # Start TensorFlow Serving
-          CMD ["tensorflow_model_server", \
-               "--rest_api_port=8501", \
-               "--model_name=consumer-complaints-classifier", \
-               "--model_base_path=/models/consumer-complaints-classifier"]
-          EOF
-          
-          echo "✅ Dockerfile.serving created"
-          cat Dockerfile.serving
-      
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: Dockerfile.serving
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-      
-      - name: Docker build summary
-        run: |
-          echo "## Docker Image Built and Pushed" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Image Tags:" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          echo "${{ steps.meta.outputs.tags }}" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Pull Command:" >> $GITHUB_STEP_SUMMARY
-          echo '```bash' >> $GITHUB_STEP_SUMMARY
-          echo "docker pull ${{ env.DOCKER_REGISTRY }}/${{ env.IMAGE_NAME }}:latest" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-
-  # ==========================================================================
-  # JOB 6: DEPLOY TO GCP (CLOUD RUN)
-  # ==========================================================================
-  deploy-to-gcp:
-    name: Deploy to Google Cloud Run
-    runs-on: ubuntu-latest
-    needs: build-docker
-    if: github.ref == 'refs/heads/main'
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-      
-      - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@v2
-        with:
-          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
-          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
-      
-      - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v2
-      
-      - name: Configure Docker for GCP
-        run: |
-          gcloud auth configure-docker ${{ env.DOCKER_REGISTRY }}
-      
-      - name: Extract image tag
-        id: image
-        run: |
-          IMAGE_TAG="${{ env.DOCKER_REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
-          echo "tag=${IMAGE_TAG}" >> $GITHUB_OUTPUT
-          echo "Image to deploy: ${IMAGE_TAG}"
-      
-      - name: Deploy to Cloud Run
-        run: |
-          gcloud run deploy consumer-complaints-serving \
-            --image=${{ steps.image.outputs.tag }} \
-            --platform=managed \
-            --region=${{ env.REGION }} \
-            --allow-unauthenticated \
-            --port=8501 \
-            --memory=2Gi \
-            --cpu=2 \
-            --min-instances=0 \
-            --max-instances=10 \
-            --timeout=300 \
-            --set-env-vars="MODEL_NAME=consumer-complaints-classifier" \
-            --project=${{ secrets.GCP_PROJECT_ID }}
-      
-      - name: Get service URL
-        id: service
-        run: |
-          SERVICE_URL=$(gcloud run services describe consumer-complaints-serving \
-            --region=${{ env.REGION }} \
-            --format='value(status.url)' \
-            --project=${{ secrets.GCP_PROJECT_ID }})
-          echo "url=${SERVICE_URL}" >> $GITHUB_OUTPUT
-          echo "Service URL: ${SERVICE_URL}"
-      
-      - name: Test deployment
-        run: |
-          SERVICE_URL="${{ steps.service.outputs.url }}"
-          
-          # Test health endpoint
-          echo "Testing model metadata endpoint..."
-          curl -s "${SERVICE_URL}/v1/models/consumer-complaints-classifier" | jq '.' || echo "Health check failed"
-          
-          # Test prediction endpoint with sample data
-          echo ""
-          echo "Testing prediction endpoint..."
-          curl -s -X POST "${SERVICE_URL}/v1/models/consumer-complaints-classifier:predict" \
-            -H "Content-Type: application/json" \
-            -d '{
-              "instances": ["I need to dispute a charge on my credit card"]
-            }' | jq '.' || echo "Prediction test failed"
-      
-      - name: Deployment summary
-        run: |
-          echo "## 🚀 Deployment Successful" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Service Details:" >> $GITHUB_STEP_SUMMARY
-          echo "- **Service Name:** consumer-complaints-serving" >> $GITHUB_STEP_SUMMARY
-          echo "- **Region:** ${{ env.REGION }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **URL:** ${{ steps.service.outputs.url }}" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### API Endpoints:" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          echo "# Model Metadata" >> $GITHUB_STEP_SUMMARY
-          echo "GET ${{ steps.service.outputs.url }}/v1/models/consumer-complaints-classifier" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "# Prediction" >> $GITHUB_STEP_SUMMARY
-          echo "POST ${{ steps.service.outputs.url }}/v1/models/consumer-complaints-classifier:predict" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-
-  # ==========================================================================
-  # JOB 7: UPLOAD MODEL TO GCS (BACKUP)
-  # ==========================================================================
-  backup-to-gcs:
-    name: Backup Model to GCS
-    runs-on: ubuntu-latest
-    needs: convert-model
-    if: github.ref == 'refs/heads/main'
-    
-    steps:
-      - name: Download SavedModel
-        uses: actions/download-artifact@v4
-        with:
-          name: savedmodel
-          path: models/tfserving/
-      
-      - name: Download label encoder
-        uses: actions/download-artifact@v4
-        with:
-          name: label-encoder
-          path: models/artifacts/
-      
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:
@@ -547,33 +235,233 @@ jobs:
         uses: google-github-actions/setup-gcloud@v2
       
       - name: Upload to GCS
+        id: upload
         run: |
-          TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-          GCS_PATH="gs://${{ secrets.GCS_BUCKET }}/models/backups/${TIMESTAMP}"
+          MODEL_VERSION=${{ needs.model-training.outputs.model_version }}
+          GCS_PATH="gs://${{ secrets.GCS_BUCKET }}/models/production/${MODEL_VERSION}"
           
-          echo "Backing up model to: ${GCS_PATH}"
-          
-          # Upload SavedModel
-          gsutil -m cp -r models/tfserving/* "${GCS_PATH}/savedmodel/"
-          
-          # Upload artifacts
-          gsutil cp models/artifacts/label_encoder.pkl "${GCS_PATH}/artifacts/"
-          
-          echo "✅ Backup complete"
-          echo "GCS_PATH=${GCS_PATH}" >> $GITHUB_ENV
+          gsutil -m cp -r models/trained/* ${GCS_PATH}/
+          echo "gcs_path=${GCS_PATH}" >> $GITHUB_OUTPUT
+          echo "✅ Model uploaded to: ${GCS_PATH}"
       
-      - name: Backup summary
+      - name: Upload summary
         run: |
-          echo "## Backup Complete" >> $GITHUB_STEP_SUMMARY
-          echo "Model backed up to: ${{ env.GCS_PATH }}" >> $GITHUB_STEP_SUMMARY
+          echo "## Model Upload" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Model uploaded to GCS" >> $GITHUB_STEP_SUMMARY
+          echo "**GCS Path:** ${{ steps.upload.outputs.gcs_path }}" >> $GITHUB_STEP_SUMMARY
 
   # ==========================================================================
-  # JOB 8: NOTIFICATION
+  # JOB 5: REGISTER MODEL IN VERTEX AI
+  # ==========================================================================
+  register-model:
+    name: Register Model in Vertex AI
+    runs-on: ubuntu-latest
+    needs: [model-training, upload-model]
+    if: github.ref == 'refs/heads/main'
+    
+    outputs:
+      model_resource_name: ${{ steps.register.outputs.model_name }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install google-cloud-aiplatform
+      
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+      
+      - name: Register model in Vertex AI
+        id: register
+        run: |
+          python - <<EOF
+          from google.cloud import aiplatform
+          import os
+          
+          aiplatform.init(
+              project="${{ env.PROJECT_ID }}",
+              location="${{ env.REGION }}"
+          )
+          
+          model_version = "${{ needs.model-training.outputs.model_version }}"
+          gcs_path = "${{ needs.upload-model.outputs.gcs_model_path }}"
+          
+          # Upload model to Vertex AI Model Registry
+          model = aiplatform.Model.upload(
+              display_name="${{ env.MODEL_DISPLAY_NAME }}",
+              artifact_uri=gcs_path,
+              serving_container_image_uri="us-docker.pkg.dev/vertex-ai/prediction/tf2-cpu.2-11:latest",
+              description=f"Consumer complaints classifier - Version {model_version}",
+              labels={
+                  "version": model_version.replace("_", "-").replace(".", "-")[:63],
+                  "environment": "production",
+                  "framework": "tensorflow",
+                  "model-type": "use-classifier"
+              }
+          )
+          
+          print(f"Model registered: {model.resource_name}")
+          
+          # Save model resource name
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+              f.write(f"model_name={model.resource_name}\n")
+          EOF
+      
+      - name: Registration summary
+        run: |
+          echo "## Vertex AI Model Registration" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Model registered in Vertex AI Model Registry" >> $GITHUB_STEP_SUMMARY
+          echo "**Model Resource Name:** ${{ steps.register.outputs.model_name }}" >> $GITHUB_STEP_SUMMARY
+
+  # ==========================================================================
+  # JOB 6: DEPLOY MODEL TO VERTEX AI ENDPOINT
+  # ==========================================================================
+  deploy-endpoint:
+    name: Deploy Model to Vertex AI Endpoint
+    runs-on: ubuntu-latest
+    needs: [model-training, register-model]
+    if: github.ref == 'refs/heads/main' && (github.event.inputs.deploy_endpoint != 'false')
+    
+    outputs:
+      endpoint_id: ${{ steps.deploy.outputs.endpoint_id }}
+      endpoint_url: ${{ steps.deploy.outputs.endpoint_url }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install google-cloud-aiplatform
+      
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+      
+      - name: Deploy model to endpoint
+        id: deploy
+        run: |
+          python - <<EOF
+          from google.cloud import aiplatform
+          import os
+          
+          aiplatform.init(
+              project="${{ env.PROJECT_ID }}",
+              location="${{ env.REGION }}"
+          )
+          
+          # Get the registered model
+          model = aiplatform.Model("${{ needs.register-model.outputs.model_resource_name }}")
+          
+          # Check if endpoint exists
+          endpoints = aiplatform.Endpoint.list(
+              filter=f'display_name="${{ env.ENDPOINT_DISPLAY_NAME }}"'
+          )
+          
+          if endpoints:
+              endpoint = endpoints[0]
+              print(f"Using existing endpoint: {endpoint.resource_name}")
+              
+              # Undeploy previous models (optional - or use traffic splitting)
+              for deployed_model in endpoint.list_models():
+                  try:
+                      endpoint.undeploy(deployed_model_id=deployed_model.id)
+                      print(f"Undeployed model: {deployed_model.id}")
+                  except Exception as e:
+                      print(f"Could not undeploy model {deployed_model.id}: {e}")
+          else:
+              # Create new endpoint
+              endpoint = aiplatform.Endpoint.create(
+                  display_name="${{ env.ENDPOINT_DISPLAY_NAME }}",
+                  description="Consumer complaints classifier endpoint"
+              )
+              print(f"Created new endpoint: {endpoint.resource_name}")
+          
+          # Deploy model to endpoint
+          model.deploy(
+              endpoint=endpoint,
+              deployed_model_display_name="${{ env.MODEL_DISPLAY_NAME }}-${{ needs.model-training.outputs.model_version }}",
+              machine_type="n1-standard-4",
+              min_replica_count=1,
+              max_replica_count=3,
+              traffic_percentage=100,
+              accelerator_type=None,
+              accelerator_count=0
+          )
+          
+          print(f"Model deployed to endpoint: {endpoint.resource_name}")
+          
+          # Save outputs
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+              f.write(f"endpoint_id={endpoint.name}\n")
+              f.write(f"endpoint_url=https://{os.environ['REGION']}-aiplatform.googleapis.com/v1/{endpoint.resource_name}:predict\n")
+          EOF
+      
+      - name: Test endpoint
+        run: |
+          python - <<EOF
+          from google.cloud import aiplatform
+          
+          aiplatform.init(
+              project="${{ env.PROJECT_ID }}",
+              location="${{ env.REGION }}"
+          )
+          
+          endpoint = aiplatform.Endpoint("${{ steps.deploy.outputs.endpoint_id }}")
+          
+          # Test prediction
+          test_instances = [
+              {"text": "I have a problem with my credit card billing"}
+          ]
+          
+          try:
+              predictions = endpoint.predict(instances=test_instances)
+              print("✅ Endpoint test successful")
+              print(f"Sample prediction: {predictions.predictions[0] if predictions.predictions else 'No predictions'}")
+          except Exception as e:
+              print(f"⚠️ Endpoint test failed: {e}")
+          EOF
+      
+      - name: Deployment summary
+        run: |
+          echo "## Vertex AI Endpoint Deployment" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Model deployed to Vertex AI endpoint" >> $GITHUB_STEP_SUMMARY
+          echo "**Endpoint ID:** ${{ steps.deploy.outputs.endpoint_id }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Endpoint URL:** ${{ steps.deploy.outputs.endpoint_url }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Test the endpoint:" >> $GITHUB_STEP_SUMMARY
+          echo '```bash' >> $GITHUB_STEP_SUMMARY
+          echo 'gcloud ai endpoints predict ${{ steps.deploy.outputs.endpoint_id }} \' >> $GITHUB_STEP_SUMMARY
+          echo '  --region=${{ env.REGION }} \' >> $GITHUB_STEP_SUMMARY
+          echo '  --json-request=request.json' >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+  # ==========================================================================
+  # JOB 7: DEPLOYMENT NOTIFICATION
   # ==========================================================================
   notify:
     name: Send Notification
     runs-on: ubuntu-latest
-    needs: [code-quality, unit-tests, model-training, deploy-to-gcp]
+    needs: [code-quality, unit-tests, model-training, upload-model, register-model, deploy-endpoint]
     if: always()
     
     steps:
@@ -583,7 +471,9 @@ jobs:
           echo "  Code Quality: ${{ needs.code-quality.result }}"
           echo "  Unit Tests: ${{ needs.unit-tests.result }}"
           echo "  Model Training: ${{ needs.model-training.result }}"
-          echo "  Deployment: ${{ needs.deploy-to-gcp.result }}"
+          echo "  Upload Model: ${{ needs.upload-model.result }}"
+          echo "  Register Model: ${{ needs.register-model.result }}"
+          echo "  Deploy Endpoint: ${{ needs.deploy-endpoint.result }}"
       
       - name: Create summary
         run: |
@@ -593,14 +483,23 @@ jobs:
           echo "- ✅ Code Quality: ${{ needs.code-quality.result }}" >> $GITHUB_STEP_SUMMARY
           echo "- ✅ Unit Tests: ${{ needs.unit-tests.result }}" >> $GITHUB_STEP_SUMMARY
           echo "- ✅ Model Training: ${{ needs.model-training.result }}" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ Deployment: ${{ needs.deploy-to-gcp.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Upload Model: ${{ needs.upload-model.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Register Model: ${{ needs.register-model.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Deploy Endpoint: ${{ needs.deploy-endpoint.result }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "## Deployment Stack:" >> $GITHUB_STEP_SUMMARY
-          echo "- **Model Format:** TensorFlow SavedModel" >> $GITHUB_STEP_SUMMARY
-          echo "- **Serving:** TensorFlow Serving" >> $GITHUB_STEP_SUMMARY
-          echo "- **Container:** Docker" >> $GITHUB_STEP_SUMMARY
-          echo "- **Platform:** Google Cloud Run" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Deployment Details:" >> $GITHUB_STEP_SUMMARY
           echo "**Branch:** ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
           echo "**Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
           echo "**Author:** ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Model Version:** ${{ needs.model-training.outputs.model_version }}" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "${{ needs.deploy-endpoint.result }}" == "success" ]; then
+            echo "**Endpoint ID:** ${{ needs.deploy-endpoint.outputs.endpoint_id }}" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### 🎯 Quick Start:" >> $GITHUB_STEP_SUMMARY
+            echo '```python' >> $GITHUB_STEP_SUMMARY
+            echo 'from google.cloud import aiplatform' >> $GITHUB_STEP_SUMMARY
+            echo 'endpoint = aiplatform.Endpoint("${{ needs.deploy-endpoint.outputs.endpoint_id }}")' >> $GITHUB_STEP_SUMMARY
+            echo 'predictions = endpoint.predict(instances=[{"text": "Your complaint here"}])' >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          fi
