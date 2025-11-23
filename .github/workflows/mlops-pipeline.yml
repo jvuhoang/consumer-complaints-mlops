@@ -35,7 +35,10 @@ on:
         description: 'Training sample size'
         required: false
         default: '5000'
-
+permissions:
+  id-token: write
+  contents: read
+  
 env:
   PYTHON_VERSION: '3.11'
   PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
