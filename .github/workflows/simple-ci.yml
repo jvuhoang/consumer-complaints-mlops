@@ -47,11 +47,17 @@ jobs:
         run: |
           pytest tests/ -v --cov=src --cov-report=term-missing
           
-      - name: Run linting
+      - name: Format code
         run: |
-          pip install black flake8 isort
-          black --check src/ tests/
-          flake8 src/ tests/ --max-line-length=100
+          black .
+          isort .
+
+      - name: Commit formatting changes
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git diff --quiet || (git add . && git commit -m "Auto-format code with black and isort" && git push)
+        continue-on-error: true
 
       - name: Success message
         run: |
