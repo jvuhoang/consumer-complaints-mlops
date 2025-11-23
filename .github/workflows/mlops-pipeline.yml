@@ -222,7 +222,7 @@ jobs:
       
       - name: Convert Keras model to SavedModel format
         run: |
-          python <<'PYTHON_SCRIPT'
+          cat > convert_model.py << 'EOF'
           import sys
           import os
           
@@ -256,15 +256,20 @@ jobs:
               model = tf.keras.models.load_model('models/trained/model.keras')
           
           print("   ✓ Model loaded successfully")
+          print(f"   Model type: {type(model).__name__}")
           
           # Create version directory for TensorFlow Serving
           # TF Serving expects models in: /models/<model_name>/<version>/
           version = "1"
           export_path = f'models/tfserving/{version}'
           
-          print(f"\n3. Saving model to: {export_path}")
+          print(f"\n3. Exporting model to: {export_path}")
+          
+          # Use model.export() for Keras 3 - this creates SavedModel format
+          os.makedirs(export_path, exist_ok=True)
           model.export(export_path)
-          print("   ✓ Model saved in SavedModel format")
+          
+          print("   ✓ Model exported in SavedModel format")
           
           # Verify saved_model.pb exists
           print("\n4. Verifying SavedModel structure:")
@@ -285,12 +290,15 @@ jobs:
               text=True
           )
           for line in result.stdout.strip().split('\n'):
-              print(f"   {line}")
+              if line:
+                  print(f"   {line}")
           
           print("\n" + "=" * 60)
           print("✅ Model conversion completed successfully")
           print("=" * 60)
-          PYTHON_SCRIPT
+          EOF
+          
+          python convert_model.py
       
       - name: Upload SavedModel artifacts
         uses: actions/upload-artifact@v4
