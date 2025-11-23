@@ -1,4 +1,19 @@
 # .github/workflows/simple-ci.yml
+
+# Replace this entire section with the Workload Identity authentication
+- name: 'dhoan085@uottawa.ca'
+  uses: 'google-github-actions/auth@v2'
+  with:
+    # Use the full string generated in Step 6 of the previous response!
+    workload_identity_provider: 'projects/398906563232/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
+    service_account: 'mlops-cicd@$project-37461c1b-635d-4cf2-af5.iam.gserviceaccount.com'
+
+# Now, any gcloud command run after this step will be authorized by the Service Account
+- name: 'Run gcloud or gsutil Commands'
+  run: |
+    # Example command that would have required the key.json before
+    gcloud ai platform ...
+
 # Start with a simple workflow, expand later
 name: Simple CI
 on:
