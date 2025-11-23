@@ -26,13 +26,33 @@ jobs:
           pip install -r requirements.txt
           pip install pytest pytest-cov
           pip install -e .  # Install the package in editable mode
-      
+
+
+      - name: Debug - Check directory structure
+        run: |
+          echo "Current directory:"
+          pwd
+          echo "Directory structure:"
+          ls -la
+          echo "Src directory:"
+          ls -la src/ || echo "src directory not found"
+          echo "Python path:"
+          echo $PYTHONPATH
+          echo "Checking for __init__.py files:"
+          find . -name "__init__.py"
+
       - name: Run tests
         env:
           PYTHONPATH: ${{ github.workspace }}
         run: |
           pytest tests/ -v --cov=src --cov-report=term-missing
-      
+          
+      - name: Run linting
+        run: |
+          pip install black flake8 isort
+          black --check src/ tests/
+          flake8 src/ tests/ --max-line-length=100
+
       - name: Success message
         run: |
           echo "✅ All tests passed!"
