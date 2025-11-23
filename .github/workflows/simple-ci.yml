@@ -23,13 +23,15 @@ jobs:
         run: |
           pip install --upgrade pip
           pip install tensorflow>=2.15.0 tensorflow-hub tensorflow-text
+          pip install -r requirements.txt
           pip install pytest pytest-cov
+          pip install -e .  # Install the package in editable mode
       
       - name: Run tests
         env:
           PYTHONPATH: ${{ github.workspace }}
         run: |
-          pytest tests/unit/ -v
+          pytest tests/ -v --cov=src --cov-report=term-missing
       
       - name: Success message
         run: |
