@@ -43,5 +43,6 @@ tests/data_validation/__init__.py
 tests/e2e/__init__.py
 tests/integration/__init__.py
 tests/smoke/__init__.py
+tests/smoke/test_endpoint.py
 tests/unit/__init__.py
 tests/unit/test_models.py
