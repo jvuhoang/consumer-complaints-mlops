@@ -257,9 +257,12 @@ def main():
     model_path = f"{args.output_path}/model"
 
     if args.save_format == "tf":
-        model.save(model_path, save_format="tf")
+        # Use .keras format for Keras 3
+        model.save(f"{model_path}.keras")
+        logger.info(f"✅ Model saved: {model_path}.keras")
     else:
         model.save(f"{model_path}.h5")
+        logger.info(f"✅ Model saved: {model_path}.h5")
 
     logger.info(f"✅ Model saved: {model_path}")
 
