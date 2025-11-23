@@ -2,35 +2,24 @@
 
 import pytest
 import tensorflow as tf
+import numpy as np
 from src.models.use_classifier import build_use_classifier
 
 
-def test_model_builds():
-    """Test that model builds without errors"""
-    model = build_bert_classifier(num_classes=18)
+def test_use_model_builds():
+    """Test USE model builds without errors"""
+    model = build_use_classifier(num_classes=18)
     assert model is not None
     assert isinstance(model, tf.keras.Model)
 
-def test_model_input_shape():
-    """Test model accepts string input"""
-    model = build_bert_classifier(num_classes=18)
-    
-    # Test prediction
-    sample_text = ["This is a test complaint"]
-    prediction = model.predict(sample_text)
-    
-    assert prediction.shape == (1, 18)
 
-def test_model_output_probabilities():
-    """Test model outputs valid probabilities"""
-    model = build_bert_classifier(num_classes=18)
+def test_use_model_prediction():
+    """Test USE model can make predictions"""
+    model = build_use_classifier(num_classes=18)
+    sample_text = np.array(["This is a test complaint"]) 
+    sample_text = tf.constant(["This is a test complaint"], dtype=tf.string)
     
-    sample_text = ["Test"]
-    prediction = model.predict(sample_text)
+    prediction = model.predict(sample_text, verbose=0)
     
-    # Check probabilities sum to 1
-    assert abs(prediction.sum() - 1.0) < 0.01
-    
-    # Check all probabilities between 0 and 1
-    assert (prediction >= 0).all()
-    assert (prediction <= 1).all()
+    assert prediction.shape == (1, 18) 
+    assert np.allclose(np.sum(prediction), 1.0, atol=1e-5)
