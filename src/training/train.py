@@ -23,7 +23,7 @@ import logging
 from src.data.loader import DataLoader
 from src.models.bert_classifier import build_bert_classifier
 from src.models.use_classifier import build_use_classifier
-from src.training.trainer import Trainer
+#from src.training.trainer import Trainer
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
