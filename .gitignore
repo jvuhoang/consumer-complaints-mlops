@@ -9,3 +9,6 @@ logs/
 .pytest_cache/
 *.json
 !configs/*.json
+google-cloud-cli-darwin-arm.tar
+/google-cloud-sdk
+.gitignore.s
