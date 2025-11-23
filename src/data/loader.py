@@ -18,7 +18,10 @@ class DataLoader:
     """Load and prepare consumer complaints data from BigQuery"""
 
     def __init__(
-        self, project_id: str, dataset_id: str = "consumer_complaints", table_id: str = "complaints"
+        self,
+        project_id: str,
+        dataset_id: str = "consumer_complaints",
+        table_id: str = "complaints",
     ):
         """
         Initialize data loader
@@ -147,7 +150,6 @@ class DataLoader:
         # Remove any class with fewer than 2 samples
         valid_classes = class_counts[class_counts >= 2].index
         df = df[df["target"].isin(valid_classes)]
-
 
         # Split train/test
         train_val_df, test_df = train_test_split(

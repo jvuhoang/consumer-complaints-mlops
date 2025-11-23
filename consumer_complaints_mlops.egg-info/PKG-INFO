@@ -1,0 +1,16 @@
+Metadata-Version: 2.4
+Name: consumer-complaints-mlops
+Version: 0.1.0
+Summary: MLOps pipeline for consumer complaints classification
+Requires-Python: >=3.10
+Requires-Dist: tensorflow>=2.15.0
+Requires-Dist: tensorflow-hub>=0.15.0
+Requires-Dist: tensorflow-text>=2.15.0
+Requires-Dist: google-cloud-aiplatform>=1.38.0
+Requires-Dist: google-cloud-bigquery>=3.13.0
+Requires-Dist: pandas>=2.0.0
+Requires-Dist: numpy>=1.24.0
+Requires-Dist: scikit-learn>=1.3.0
+Provides-Extra: dev
+Requires-Dist: pytest>=7.0.0; extra == "dev"
+Requires-Dist: pytest-cov>=4.0.0; extra == "dev"

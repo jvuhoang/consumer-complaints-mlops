@@ -23,7 +23,8 @@ import logging
 from src.data.loader import DataLoader
 from src.models.bert_classifier import build_bert_classifier
 from src.models.use_classifier import build_use_classifier
-#from src.training.trainer import Trainer
+
+# from src.training.trainer import Trainer
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
@@ -37,30 +38,52 @@ def parse_args():
 
     # Data arguments
     parser.add_argument("--project-id", required=True, help="GCP project ID")
-    parser.add_argument("--dataset-id", default="consumer_complaints", help="BigQuery dataset ID")
+    parser.add_argument(
+        "--dataset-id", default="consumer_complaints", help="BigQuery dataset ID"
+    )
     parser.add_argument("--table-id", default="complaints", help="BigQuery table ID")
     parser.add_argument("--target-column", default="Product", help="Target column name")
-    parser.add_argument("--sample-size", type=int, default=None, help="Number of samples to use")
+    parser.add_argument(
+        "--sample-size", type=int, default=None, help="Number of samples to use"
+    )
 
     # Model arguments
-    parser.add_argument("--model-type", default="use", choices=["bert", "use"], help="Model type")
-    parser.add_argument("--max-seq-length", type=int, default=128, help="Max sequence length")
+    parser.add_argument(
+        "--model-type", default="use", choices=["bert", "use"], help="Model type"
+    )
+    parser.add_argument(
+        "--max-seq-length", type=int, default=128, help="Max sequence length"
+    )
 
     # Training arguments
     parser.add_argument("--batch-size", type=int, default=32, help="Batch size")
     parser.add_argument("--epochs", type=int, default=10, help="Number of epochs")
-    parser.add_argument("--learning-rate", type=float, default=0.001, help="Learning rate")
-    parser.add_argument("--validation-split", type=float, default=0.2, help="Validation split")
+    parser.add_argument(
+        "--learning-rate", type=float, default=0.001, help="Learning rate"
+    )
+    parser.add_argument(
+        "--validation-split", type=float, default=0.2, help="Validation split"
+    )
     parser.add_argument("--test-split", type=float, default=0.2, help="Test split")
 
     # Output arguments
-    parser.add_argument("--output-path", required=True, help="Output path (local or GCS)")
-    parser.add_argument("--save-format", default="tf", choices=["tf", "h5"], help="Save format")
+    parser.add_argument(
+        "--output-path", required=True, help="Output path (local or GCS)"
+    )
+    parser.add_argument(
+        "--save-format", default="tf", choices=["tf", "h5"], help="Save format"
+    )
 
     # Other arguments
-    parser.add_argument("--use-class-weights", action="store_true", help="Use class weights")
-    parser.add_argument("--early-stopping", action="store_true", help="Use early stopping")
-    parser.add_argument("--patience", type=int, default=3, help="Early stopping patience")
+    parser.add_argument(
+        "--use-class-weights", action="store_true", help="Use class weights"
+    )
+    parser.add_argument(
+        "--early-stopping", action="store_true", help="Use early stopping"
+    )
+    parser.add_argument(
+        "--patience", type=int, default=3, help="Early stopping patience"
+    )
     parser.add_argument("--verbose", type=int, default=1, help="Verbosity level")
 
     return parser.parse_args()
@@ -92,7 +115,6 @@ def main():
     )
 
     df = loader.load_data(target_column=args.target_column, limit=args.sample_size)
-    
 
     logger.info(f"✅ Data loaded: {len(df):,} samples")
 
@@ -169,7 +191,9 @@ def main():
     logger.info("\n🔄 STEP 4: Creating TensorFlow datasets...")
 
     def create_dataset(df, batch_size, shuffle=True):
-        dataset = tf.data.Dataset.from_tensor_slices((df["text"].values, df["label"].values))
+        dataset = tf.data.Dataset.from_tensor_slices(
+            (df["text"].values, df["label"].values)
+        )
         if shuffle:
             dataset = dataset.shuffle(buffer_size=len(df))
         dataset = dataset.batch(batch_size)
@@ -191,7 +215,10 @@ def main():
 
     if args.early_stopping:
         early_stop = tf.keras.callbacks.EarlyStopping(
-            monitor="val_loss", patience=args.patience, restore_best_weights=True, verbose=1
+            monitor="val_loss",
+            patience=args.patience,
+            restore_best_weights=True,
+            verbose=1,
         )
         callbacks.append(early_stop)
         logger.info("  ✓ Early stopping enabled")
@@ -203,7 +230,9 @@ def main():
     logger.info(f"  ✓ TensorBoard logs: {log_dir}")
 
     # Model checkpoint
-    checkpoint_path = f"{args.output_path}/checkpoints/model_{{epoch:02d}}_{{val_accuracy:.4f}}.h5"
+    checkpoint_path = (
+        f"{args.output_path}/checkpoints/model_{{epoch:02d}}_{{val_accuracy:.4f}}.h5"
+    )
     checkpoint = tf.keras.callbacks.ModelCheckpoint(
         filepath=checkpoint_path, monitor="val_accuracy", save_best_only=True, verbose=1
     )
