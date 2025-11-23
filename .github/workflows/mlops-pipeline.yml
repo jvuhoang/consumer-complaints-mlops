@@ -229,7 +229,7 @@ jobs:
           SERVING_IMAGE="us-docker.pkg.dev/vertex-ai/prediction/tf2-cpu.2-11:latest"
           
           # Run the gcloud command to upload/register the model
-          ggcloud ai models upload \
+          gcloud ai models upload \
             --project=${{ env.PROJECT_ID }} \
             --region=${{ env.REGION }} \
             --display-name="$MODEL_NAME" \
