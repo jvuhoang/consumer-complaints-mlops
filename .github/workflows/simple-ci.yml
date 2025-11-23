@@ -28,6 +28,11 @@ jobs:
           pip install -r requirements-dev.txt
           # Install linting tools
           pip install black flake8 isort
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -e .  # This is the key line!
 
       - name: Run tests
         # FIX: We add PYTHONPATH=. to allow Python to find modules in the 'src' directory
