@@ -229,14 +229,12 @@ jobs:
           SERVING_IMAGE="us-docker.pkg.dev/vertex-ai/prediction/tf2-cpu.2-11:latest"
           
           # Run the gcloud command to upload/register the model
-          gcloud ai models upload $MODEL_NAME \
+          ggcloud ai models upload \
             --project=${{ env.PROJECT_ID }} \
             --region=${{ env.REGION }} \
             --display-name="$MODEL_NAME" \
             --artifact-uri="${{ env.GCS_MODEL_URI }}" \
-            --container-image-uri="$SERVING_IMAGE" \
-            --model-server-node-count=1 \
-            --allow-zero-node-scaling
+            --container-image-uri="$SERVING_IMAGE"
           
           echo "✅ Model successfully registered to Vertex AI Model Registry"
 
