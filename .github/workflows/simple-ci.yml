@@ -2,7 +2,7 @@ name: Simple CI
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: ['**']
   pull_request:
     branches: [ main, develop ]
 
@@ -11,14 +11,19 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v3
       
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      
+
+      - name: Cache dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+
       - name: Install dependencies
         run: |
           pip install --upgrade pip
@@ -26,6 +31,7 @@ jobs:
           pip install -r requirements.txt
           pip install pytest pytest-cov
           pip install -e .  # Install the package in editable mode
+          pip install pytest pytest-cov black isort flake8
 
 
       - name: Debug - Check directory structure
@@ -44,6 +50,7 @@ jobs:
       - name: Run tests
         env:
           PYTHONPATH: ${{ github.workspace }}
+          TF_CPP_MIN_LOG_LEVEL: '3'
         run: |
           pytest tests/ -v --cov=src --cov-report=term-missing
 
@@ -68,6 +75,7 @@ jobs:
           git diff --quiet || (git add . && git commit -m "Auto-format code with black and isort" && git push)
         continue-on-error: true
 
-      - name: Success message
-        run: |
-          echo "✅ All tests passed!"
+      - name: Upload coverage
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./coverage.xml
