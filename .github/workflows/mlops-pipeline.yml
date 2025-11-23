@@ -186,7 +186,7 @@ jobs:
           fi
 
   # ==========================================================================
-  # JOB 4: UPLOAD MODEL TO GCS AND REGISTER TO VERTEX AI
+  # JOB 4: CONVERT, UPLOAD MODEL TO GCS AND REGISTER TO VERTEX AI
   # ==========================================================================
   upload-model:
     name: Upload Model to GCS and Register
@@ -216,31 +216,50 @@ jobs:
       
       - name: Convert Keras model to SavedModel format
         run: |
-          python - <<EOF
+          python - <<'PYTHON_SCRIPT'
           import tensorflow as tf
           import os
           
+          print("=" * 60)
+          print("Starting model conversion to SavedModel format")
+          print("=" * 60)
+          
           # Load the Keras model
+          print("\n1. Loading Keras model from: models/trained/model.keras")
           model = tf.keras.models.load_model('models/trained/model.keras')
+          print("   ✓ Model loaded successfully")
           
-          # Save in TensorFlow SavedModel format (save_format='tf')
+          # Save in TensorFlow SavedModel format
           export_path = 'models/model_export'
+          print(f"\n2. Saving model to: {export_path}")
           model.save(export_path, save_format='tf')
-          
-          print(f"✅ Model exported to SavedModel format at {export_path}")
+          print("   ✓ Model saved in SavedModel format")
           
           # Verify saved_model.pb exists
-          if os.path.exists(os.path.join(export_path, 'saved_model.pb')):
-            print("✓ saved_model.pb found")
+          print("\n3. Verifying SavedModel structure:")
+          saved_model_pb = os.path.join(export_path, 'saved_model.pb')
+          if os.path.exists(saved_model_pb):
+              size = os.path.getsize(saved_model_pb)
+              print(f"   ✓ saved_model.pb found ({size:,} bytes)")
           else:
-            print("✗ WARNING: saved_model.pb NOT found")
+              print("   ✗ ERROR: saved_model.pb NOT found!")
+              exit(1)
           
-          # Show directory structure
+          # Show complete directory structure
+          print("\n4. Complete directory structure:")
           import subprocess
-          result = subprocess.run(['find', export_path, '-type', 'f'], capture_output=True, text=True)
-          print("\nFiles created:")
-          print(result.stdout)
-          EOF
+          result = subprocess.run(
+              ['find', export_path, '-type', 'f'], 
+              capture_output=True, 
+              text=True
+          )
+          for line in result.stdout.strip().split('\n'):
+              print(f"   {line}")
+          
+          print("\n" + "=" * 60)
+          print("✅ Model conversion completed successfully")
+          print("=" * 60)
+          PYTHON_SCRIPT
       
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
@@ -251,48 +270,84 @@ jobs:
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
       
-      - name: Upload to GCS and Register Model
+      - name: Upload SavedModel to GCS and Register to Vertex AI
         run: |
+          set -e  # Exit on any error
+          
+          echo "============================================================"
+          echo "Starting GCS Upload and Vertex AI Registration"
+          echo "============================================================"
+          
           # Calculate timestamp and GCS URI
           TIMESTAMP=$(date +%Y%m%d_%H%M%S)
           GCS_BASE_PATH="gs://${{ secrets.GCS_BUCKET }}/models/production/${TIMESTAMP}"
           
-          echo "Calculated GCS base path: $GCS_BASE_PATH"
+          echo ""
+          echo "Configuration:"
+          echo "  Timestamp: ${TIMESTAMP}"
+          echo "  GCS Base Path: ${GCS_BASE_PATH}"
+          echo "  Project: ${{ secrets.GCP_PROJECT_ID }}"
+          echo "  Region: ${{ env.REGION }}"
+          echo ""
           
-          # Debug: Show what we're about to upload
-          echo "Local model export structure:"
-          find models/model_export -type f
-          
-          # Upload the entire model_export directory to GCS
-          # This preserves the directory structure with saved_model.pb
-          gsutil cp -r models/model_export "${GCS_BASE_PATH}/"
-          
-          echo "✅ SavedModel uploaded to: ${GCS_BASE_PATH}/model_export"
-          
-          # Verify what was uploaded and check for saved_model.pb
-          echo "Verifying GCS contents:"
-          gsutil ls -r "${GCS_BASE_PATH}/model_export/"
-          
-          # Check if saved_model.pb exists in GCS
-          if gsutil ls "${GCS_BASE_PATH}/model_export/saved_model.pb" &> /dev/null; then
-            echo "✓ saved_model.pb confirmed in GCS"
-          else
-            echo "✗ ERROR: saved_model.pb NOT found in GCS"
+          # Verify local model export exists
+          echo "1. Verifying local model export..."
+          if [ ! -d "models/model_export" ]; then
+            echo "   ✗ ERROR: models/model_export directory not found!"
             exit 1
           fi
           
-          # Also upload other artifacts (label encoder, metadata) to a separate location
-          gsutil cp models/trained/label_encoder.pkl "${GCS_BASE_PATH}/artifacts/"
-          gsutil cp models/trained/metadata.json "${GCS_BASE_PATH}/artifacts/"
-          echo "✅ Additional artifacts uploaded"
+          if [ ! -f "models/model_export/saved_model.pb" ]; then
+            echo "   ✗ ERROR: saved_model.pb not found in models/model_export!"
+            exit 1
+          fi
+          echo "   ✓ Local model export verified"
+          
+          echo ""
+          echo "   Local files to upload:"
+          find models/model_export -type f | sed 's/^/     /'
+          
+          # Upload the entire model_export directory to GCS
+          echo ""
+          echo "2. Uploading SavedModel to GCS..."
+          gsutil -m cp -r models/model_export "${GCS_BASE_PATH}/"
+          echo "   ✓ Upload complete"
+          
+          # Verify saved_model.pb exists in GCS
+          echo ""
+          echo "3. Verifying GCS upload..."
+          if gsutil ls "${GCS_BASE_PATH}/model_export/saved_model.pb" &> /dev/null; then
+            echo "   ✓ saved_model.pb confirmed in GCS"
+          else
+            echo "   ✗ ERROR: saved_model.pb NOT found in GCS at ${GCS_BASE_PATH}/model_export/"
+            echo ""
+            echo "   GCS directory contents:"
+            gsutil ls -r "${GCS_BASE_PATH}/" || true
+            exit 1
+          fi
+          
+          echo ""
+          echo "   GCS directory structure:"
+          gsutil ls -r "${GCS_BASE_PATH}/model_export/" | head -20 | sed 's/^/     /'
+          
+          # Upload additional artifacts
+          echo ""
+          echo "4. Uploading additional artifacts..."
+          gsutil cp models/trained/label_encoder.pkl "${GCS_BASE_PATH}/artifacts/label_encoder.pkl"
+          gsutil cp models/trained/metadata.json "${GCS_BASE_PATH}/artifacts/metadata.json"
+          echo "   ✓ Artifacts uploaded"
           
           # Register model to Vertex AI Model Registry
-          # Point to the directory containing saved_model.pb
           MODEL_NAME="consumer-complaints-classifier"
           SERVING_IMAGE="us-docker.pkg.dev/vertex-ai/prediction/tf2-cpu.2-11:latest"
           MODEL_ARTIFACT_URI="${GCS_BASE_PATH}/model_export"
           
-          echo "Registering model from URI: ${MODEL_ARTIFACT_URI}"
+          echo ""
+          echo "5. Registering model to Vertex AI Model Registry..."
+          echo "   Model Name: ${MODEL_NAME}"
+          echo "   Artifact URI: ${MODEL_ARTIFACT_URI}"
+          echo "   Serving Image: ${SERVING_IMAGE}"
+          echo ""
           
           gcloud ai models upload \
             --project=${{ secrets.GCP_PROJECT_ID }} \
@@ -301,12 +356,26 @@ jobs:
             --artifact-uri="${MODEL_ARTIFACT_URI}" \
             --container-image-uri="${SERVING_IMAGE}"
           
+          echo ""
+          echo "============================================================"
           echo "✅ Model successfully registered to Vertex AI Model Registry"
+          echo "============================================================"
+          echo ""
+          echo "Model Details:"
+          echo "  GCS Location: ${MODEL_ARTIFACT_URI}"
+          echo "  Artifacts: ${GCS_BASE_PATH}/artifacts/"
+          echo ""
       
       - name: Upload summary
+        if: always()
         run: |
           echo "## Model Upload and Registration" >> $GITHUB_STEP_SUMMARY
-          echo "✅ Model uploaded to GCS and registered to Vertex AI" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ $? -eq 0 ]; then
+            echo "✅ Model uploaded to GCS and registered to Vertex AI" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Model upload or registration failed" >> $GITHUB_STEP_SUMMARY
+          fi
 
   # ==========================================================================
   # JOB 5: DEPLOYMENT NOTIFICATION
