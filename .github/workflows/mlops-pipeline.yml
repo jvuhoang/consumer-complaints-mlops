@@ -229,7 +229,12 @@ jobs:
           model.export(savedmodel_path)
           
           print(f"✅ Model converted to SavedModel format at {savedmodel_path}")
-          print(f"Contents: {os.listdir(savedmodel_path)}")
+          
+          # Show directory structure
+          import subprocess
+          result = subprocess.run(['find', savedmodel_path, '-type', 'f'], capture_output=True, text=True)
+          print("Files created:")
+          print(result.stdout)
           EOF
       
       - name: Authenticate to Google Cloud
@@ -245,30 +250,41 @@ jobs:
         run: |
           # Calculate timestamp and GCS URI
           TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-          GCS_MODEL_URI="gs://${{ secrets.GCS_BUCKET }}/models/production/${TIMESTAMP}/"
+          GCS_MODEL_URI="gs://${{ secrets.GCS_BUCKET }}/models/production/${TIMESTAMP}"
           
           echo "Calculated GCS URI: $GCS_MODEL_URI"
           
-          # Upload SavedModel to GCS (for Vertex AI)
-          gsutil -m cp -r models/saved_model/* $GCS_MODEL_URI
-          echo "✅ SavedModel uploaded to: $GCS_MODEL_URI"
+          # Debug: Show what we're about to upload
+          echo "Local SavedModel structure:"
+          find models/saved_model -type f
+          
+          # Upload the entire SavedModel directory with proper structure
+          # The -r flag preserves directory structure
+          gsutil -m cp -r models/saved_model "${GCS_MODEL_URI}/"
+          echo "✅ SavedModel uploaded to: ${GCS_MODEL_URI}/saved_model"
+          
+          # Verify what was uploaded
+          echo "Verifying GCS contents:"
+          gsutil ls -r "${GCS_MODEL_URI}/"
           
           # Also upload other artifacts (label encoder, metadata) to a separate location
-          gsutil cp models/trained/label_encoder.pkl gs://${{ secrets.GCS_BUCKET }}/models/production/${TIMESTAMP}/artifacts/
-          gsutil cp models/trained/metadata.json gs://${{ secrets.GCS_BUCKET }}/models/production/${TIMESTAMP}/artifacts/
+          gsutil cp models/trained/label_encoder.pkl "${GCS_MODEL_URI}/artifacts/"
+          gsutil cp models/trained/metadata.json "${GCS_MODEL_URI}/artifacts/"
           echo "✅ Additional artifacts uploaded"
           
           # Register model to Vertex AI Model Registry
+          # Point to the saved_model subdirectory where saved_model.pb lives
           MODEL_NAME="consumer-complaints-classifier"
           SERVING_IMAGE="us-docker.pkg.dev/vertex-ai/prediction/tf2-cpu.2-11:latest"
+          MODEL_ARTIFACT_URI="${GCS_MODEL_URI}/saved_model"
           
-          echo "Registering model from URI: $GCS_MODEL_URI"
+          echo "Registering model from URI: ${MODEL_ARTIFACT_URI}"
           
           gcloud ai models upload \
             --project=${{ secrets.GCP_PROJECT_ID }} \
             --region=${{ env.REGION }} \
             --display-name="${MODEL_NAME}" \
-            --artifact-uri="${GCS_MODEL_URI}" \
+            --artifact-uri="${MODEL_ARTIFACT_URI}" \
             --container-image-uri="${SERVING_IMAGE}"
           
           echo "✅ Model successfully registered to Vertex AI Model Registry"
