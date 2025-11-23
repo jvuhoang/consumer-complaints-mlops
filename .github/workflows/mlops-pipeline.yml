@@ -300,7 +300,7 @@ jobs:
           # Upload model to Vertex AI Model Registry
           model = aiplatform.Model.upload(
               display_name="${{ env.MODEL_DISPLAY_NAME }}",
-              artifact_uri=gcs_path,
+              artifact_uri='gs://project-37461c1b-635d-4cf2-af5d-mlops-models',
               serving_container_image_uri="us-docker.pkg.dev/vertex-ai/prediction/tf2-cpu.2-11:latest",
               description=f"Consumer complaints classifier - Version {model_version}",
               labels={
