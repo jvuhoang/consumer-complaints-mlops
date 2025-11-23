@@ -213,8 +213,8 @@ jobs:
         uses: google-github-actions/setup-gcloud@v2
       
       - name: Calculate GCS URI and Set ENV
+        id: calculate_uri # Give this step a clear ID
         run: |
-          # Use 'date' to get the timestamp
           TIMESTAMP=$(date +%Y%m%d_%H%M%S)
           
           # Construct the full URI
@@ -228,25 +228,32 @@ jobs:
       - name: Upload to GCS
         id: upload
         run: |
-          # Access the GCS_MODEL_URI directly from the environment
+          # The variable is now available via $GITHUB_ENV
           GCS_MODEL_URI="${{ env.GCS_MODEL_URI }}"
           
-          # Upload the model artifacts
+          if [ -z "$GCS_MODEL_URI" ]; then
+            echo "FATAL: GCS_MODEL_URI is empty during upload."
+            exit 1
+          fi
+
           gsutil -m cp -r models/trained/* $GCS_MODEL_URI
           
-          echo "✅ Model uploaded to: $GCS_MODEL_URI"
+          echo "✅ Model artifacts uploaded to: $GCS_MODEL_URI"
 
       - name: Register Model to Vertex AI
         run: |
           MODEL_NAME="consumer-complaints-classifier"
           SERVING_IMAGE="us-docker.pkg.dev/vertex-ai/prediction/tf2-cpu.2-11:latest"
-          GCS_URI="${{ env.GCS_MODEL_URI }}" # Access the environment variable
           
+          # Access the GCS_MODEL_URI from the environment
+          GCS_URI="${{ env.GCS_MODEL_URI }}" 
+          
+          # We've already checked, but one more check won't hurt
           if [ -z "$GCS_URI" ]; then
-            echo "Error: GCS_MODEL_URI is empty ($GCS_URI). Cannot register model."
+            echo "FATAL: GCS_URI is empty during registration."
             exit 1
           fi
-
+          
           echo "Registering model from URI: $GCS_URI"
           
           gcloud ai models upload $MODEL_NAME \
