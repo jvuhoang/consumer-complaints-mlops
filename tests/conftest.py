@@ -15,5 +15,5 @@ def sample_complaints():
     return [
         "I dispute the charges on my credit report",
         "My mortgage payment was not processed correctly",
-        "I am being harassed by debt collectors"
+        "I am being harassed by debt collectors",
     ]
