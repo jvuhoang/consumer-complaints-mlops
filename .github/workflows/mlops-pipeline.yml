@@ -213,13 +213,12 @@ jobs:
         uses: google-github-actions/setup-gcloud@v2
       
       - name: Calculate GCS URI and Save to File
-        id: calculate_uri
         run: |
           TIMESTAMP=$(date +%Y%m%d_%H%M%S)
           GCS_MODEL_URI="gs://${{ secrets.GCS_BUCKET }}/models/production/${TIMESTAMP}/"
           
-          # CRITICAL: Save the URI to a file that the next step can read
-          echo "$GCS_MODEL_URI" > gcs_uri.txt
+          # Write the URI to a file without any extra newlines or characters
+          echo -n "$GCS_MODEL_URI" > gcs_uri.txt # <-- Use -n to prevent extra newline
           
           echo "Calculated URI: $GCS_MODEL_URI"
 
@@ -243,21 +242,21 @@ jobs:
           SERVING_IMAGE="us-docker.pkg.dev/vertex-ai/prediction/tf2-cpu.2-11:latest"
           
           # Read the URI from the file
-          GCS_URI=$(cat gcs_uri.txt)
+          GCS_URI=$(cat gcs_uri.txt) # <--- THIS IS THE CRITICAL LINE
           
           if [ -z "$GCS_URI" ]; then
-            echo "FATAL: GCS_URI is empty during registration."
+            echo "FATAL: GCS_URI is empty. Cannot register model."
             exit 1
           fi
           
           echo "Registering model from URI: $GCS_URI"
           
-          # Run the gcloud command with the URI read from the file
+          # Run the gcloud command with the file-read variable
           gcloud ai models upload $MODEL_NAME \
             --project=${{ env.PROJECT_ID }} \
             --region=${{ env.REGION }} \
             --display-name="$MODEL_NAME" \
-            --artifact-uri="$GCS_URI" \ # <--- Uses the file-read variable
+            --artifact-uri="$GCS_URI" \ 
             --container-image-uri="$SERVING_IMAGE" \
             --model-server-node-count=1 \
             --allow-zero-node-scaling
