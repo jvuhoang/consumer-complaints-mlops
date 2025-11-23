@@ -9,7 +9,7 @@ on:
 env:
   PROJECT_ID: project-37461c1b-635d-4cf2-af5
   REGION: us-central1
-  BUCKET_NAME: gs://project-37461c1b-635d-4cf2-af5d-mlops-models 
+  BUCKET_NAME: project-37461c1b-635d-4cf2-af5d-mlops-models 
   
 jobs:
   deploy:
@@ -36,6 +36,19 @@ jobs:
       run: |
         gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev
     
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+    
+    - name: Install dependencies
+      run: |
+        pip install -r requirements.txt
+    
+    - name: Train model
+      run: |
+        python src/training/train.py  # This should save model.pkl
+      
     # Cloud Storage Example
     - name: Upload to Cloud Storage
       run: |
