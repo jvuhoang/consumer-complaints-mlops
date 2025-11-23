@@ -212,43 +212,48 @@ jobs:
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
       
+      - name: Calculate GCS URI and Set ENV
+        run: |
+          # Use 'date' to get the timestamp
+          TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+          
+          # Construct the full URI
+          GCS_MODEL_URI="gs://${{ secrets.GCS_BUCKET }}/models/production/${TIMESTAMP}/"
+          
+          # CRITICAL: Export the clean variable to GITHUB_ENV
+          echo "GCS_MODEL_URI=$GCS_MODEL_URI" >> $GITHUB_ENV
+          
+          echo "Calculated URI: $GCS_MODEL_URI"
+
       - name: Upload to GCS
         id: upload
         run: |
-          TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-          # Define the GCS URI, ensuring it uses the GCS_BUCKET secret
-          GCS_MODEL_URI="gs://${{ secrets.GCS_BUCKET }}/models/production/${TIMESTAMP}/"
+          # Access the GCS_MODEL_URI directly from the environment
+          GCS_MODEL_URI="${{ env.GCS_MODEL_URI }}"
           
           # Upload the model artifacts
           gsutil -m cp -r models/trained/* $GCS_MODEL_URI
           
-          # EXPORT URI TO GITHUB_ENV for use in the next step
-          echo "GCS_MODEL_URI=$GCS_MODEL_URI" >> $GITHUB_ENV # <-- CRITICAL CHANGE
           echo "✅ Model uploaded to: $GCS_MODEL_URI"
 
       - name: Register Model to Vertex AI
         run: |
-          # Define a base name for the model in the registry
           MODEL_NAME="consumer-complaints-classifier"
           SERVING_IMAGE="us-docker.pkg.dev/vertex-ai/prediction/tf2-cpu.2-11:latest"
+          GCS_URI="${{ env.GCS_MODEL_URI }}" # Access the environment variable
           
-          # Use the environment variable set in the previous step
-          GCS_URI="${{ env.GCS_MODEL_URI }}" # <-- USE ENV ACCESS SYNTAX
-          
-          # Check if the URI is set (Good practice)
           if [ -z "$GCS_URI" ]; then
-            echo "Error: GCS_MODEL_URI is empty. Cannot register model."
+            echo "Error: GCS_MODEL_URI is empty ($GCS_URI). Cannot register model."
             exit 1
           fi
+
+          echo "Registering model from URI: $GCS_URI"
           
-          echo "Registering model from URI: $GCS_URI" # <-- DEBUGGING CHECK
-          
-          # Run the gcloud command to upload/register the model
           gcloud ai models upload $MODEL_NAME \
             --project=${{ env.PROJECT_ID }} \
             --region=${{ env.REGION }} \
             --display-name="$MODEL_NAME" \
-            --artifact-uri="$GCS_URI" \ # <-- USE THE ACCESSIBLE VARIABLE
+            --artifact-uri="$GCS_URI" \ # <--- Uses the clean variable
             --container-image-uri="$SERVING_IMAGE" \
             --model-server-node-count=1 \
             --allow-zero-node-scaling
