@@ -35,6 +35,7 @@ on:
         description: 'Training sample size'
         required: false
         default: '5000'
+
 permissions:
   id-token: write
   contents: read
@@ -185,10 +186,10 @@ jobs:
           fi
 
   # ==========================================================================
-  # JOB 4: UPLOAD MODEL TO GCS
+  # JOB 4: UPLOAD MODEL TO GCS AND REGISTER TO VERTEX AI
   # ==========================================================================
   upload-model:
-    name: Upload Model to GCS
+    name: Upload Model to GCS and Register
     runs-on: ubuntu-latest
     needs: model-training
     if: github.ref == 'refs/heads/main'
@@ -212,85 +213,33 @@ jobs:
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
       
-      - name: Calculate GCS URI and Save to File
+      - name: Upload to GCS and Register Model
         run: |
+          # Calculate timestamp and GCS URI
           TIMESTAMP=$(date +%Y%m%d_%H%M%S)
           GCS_MODEL_URI="gs://${{ secrets.GCS_BUCKET }}/models/production/${TIMESTAMP}/"
           
-          # Write the URI to a file without any extra newlines or characters
-          echo -n "$GCS_MODEL_URI" > gcs_uri.txt # <-- Use -n to prevent extra newline
+          echo "Calculated GCS URI: $GCS_MODEL_URI"
           
-          echo "Calculated URI: $GCS_MODEL_URI"
-
-      - name: Upload to GCS
-        run: |
-          # Read the URI from the file
-          GCS_MODEL_URI=$(cat gcs_uri.txt)
-          
-          if [ -z "$GCS_MODEL_URI" ]; then
-            echo "FATAL: GCS_MODEL_URI is empty during upload."
-            exit 1
-          fi
-
+          # Upload model artifacts to GCS
           gsutil -m cp -r models/trained/* $GCS_MODEL_URI
-          
           echo "✅ Model artifacts uploaded to: $GCS_MODEL_URI"
-      
-      - name: '$_CICD_IMAGE_URI' # Use an image with bash and gsutil/gcloud
-          entrypoint: 'bash'
-          args:
-            - '-c'
-            - |
-              TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-              # Construct the full URI. Note: $_GCS_BUCKET needs to be defined in your cloudbuild.yaml or passed as a substitution.
-              GCS_MODEL_URI="gs://${_GCS_BUCKET}/models/production/${TIMESTAMP}/" 
-              
-              # Upload the model artifacts (this was previously an isolated step)
-              gsutil -m cp -r mlops-with-vertex-ai/models/trained/* $GCS_MODEL_URI
-              
-              # CRITICAL FIX: Save the URI to a file to be sourced by the next step's environment
-              echo "GCS_MODEL_URI=$GCS_MODEL_URI" > /workspace/gcs_uri.env
-          id: 'Calculate and Upload Model Artifacts'
-          waitFor: ['Local Test E2E Pipeline', 'Build TFX Image']
-
-      # Register the model in the Vertex AI Model Registry
-      - name: '$_CICD_IMAGE_URI'
-        entrypoint: 'bash'
-        dir: 'mlops-with-vertex-ai'
-        # Load the dynamic GCS_MODEL_URI from the environment file
-        env: 
-          - GCS_MODEL_URI
-        # Source the environment file created in the previous step
-        volumes:
-          - name: 'gcs-uri-volume'
-            path: '/workspace'
-        args:
-          - '-c'
-          - |
-            # Check if the environment variable is loaded
-            if [ -z "$GCS_MODEL_URI" ]; then
-              echo "FATAL: GCS_MODEL_URI is empty. Cannot register model."
-              exit 1
-            fi
-            
-            MODEL_NAME="consumer-complaints-classifier"
-            SERVING_IMAGE="us-docker.pkg.dev/vertex-ai/prediction/tf2-cpu.2-11:latest"
-            
-            echo "Registering model from URI: $GCS_MODEL_URI"
-            
-            gcloud ai models upload $MODEL_NAME \
-              --project=$_PROJECT \
-              --region=$_REGION \
-              --display-name="$MODEL_NAME" \
-              --artifact-uri="$GCS_MODEL_URI" \ # <--- Uses the populated variable
-              --container-image-uri="$SERVING_IMAGE" \
-              --model-server-node-count=1
-              
-            echo "✅ Model successfully registered to Vertex AI Model Registry"
-        id: 'Register Model to Vertex AI'
-        waitFor: ['Calculate and Upload Model Artifacts']
-        timeout: 600s
           
+          # Register model to Vertex AI Model Registry
+          MODEL_NAME="consumer-complaints-classifier"
+          SERVING_IMAGE="us-docker.pkg.dev/vertex-ai/prediction/tf2-cpu.2-11:latest"
+          
+          echo "Registering model from URI: $GCS_MODEL_URI"
+          
+          gcloud ai models upload \
+            --project=${{ secrets.GCP_PROJECT_ID }} \
+            --region=${{ env.REGION }} \
+            --display-name="${MODEL_NAME}" \
+            --artifact-uri="${GCS_MODEL_URI}" \
+            --container-image-uri="${SERVING_IMAGE}"
+          
+          echo "✅ Model successfully registered to Vertex AI Model Registry"
+      
       - name: Upload summary
         run: |
           echo "## Model Upload and Registration" >> $GITHUB_STEP_SUMMARY
