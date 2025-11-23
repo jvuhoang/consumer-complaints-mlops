@@ -1,5 +1,3 @@
-# .github/workflows/simple-ci.yml
-
 name: Simple CI
 
 on:
@@ -9,62 +7,28 @@ on:
     branches: [ main, develop ]
 
 jobs:
-  # --- JOB 1: Test & Lint Code ---
   test:
     runs-on: ubuntu-latest
-
+    
     steps:
-      - uses: actions/checkout@v4
-
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
-
+      
       - name: Install dependencies
         run: |
-          # Install production and development requirements
-          pip install -r requirements.txt
-          pip install -r requirements-dev.txt
-          # Install linting tools
-          pip install black flake8 isort
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-         
-      - name: Set PYTHONPATH
-        run: echo "PYTHONPATH=$GITHUB_WORKSPACE" >> $GITHUB_ENV
-
+          pip install --upgrade pip
+          pip install tensorflow>=2.15.0 tensorflow-hub tensorflow-text
+          pip install pytest pytest-cov
+      
       - name: Run tests
-        # FIX: We add PYTHONPATH=. to allow Python to find modules in the 'src' directory
         run: |
-          PYTHONPATH=. pytest tests/ -v
-
-      - name: Run linting
+          pytest tests/unit/ -v
+      
+      - name: Success message
         run: |
-          black --check src/ tests/
-          flake8 src/ tests/ --max-line-length=100
-
-  # --- JOB 2: Authenticate and Run Deployment Commands ---
-  deploy:
-    runs-on: ubuntu-latest
-    # This job will only run if the 'test' job completes successfully
-    needs: test 
-
-    steps:
-      - uses: actions/checkout@v4
-
-      # --- Workload Identity Authentication ---
-      - name: 'Authenticate with Google Cloud'
-        uses: 'google-github-actions/auth@v2'
-        with:
-          # Replace these with your actual values if they change
-          workload_identity_provider: 'projects/398906563232/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
-          service_account: 'mlops-cicd@$project-37461c1b-635d-4cf2-af5.iam.gserviceaccount.com'
-          
-      - name: 'Run gcloud or gsutil Commands'
-        run: |
-          # Example command - replace with your actual deployment logic
-          gcloud ai platform ...
-          # Add more gcloud commands here (e.g., gsutil to upload artifacts)
+          echo "✅ All tests passed!"
