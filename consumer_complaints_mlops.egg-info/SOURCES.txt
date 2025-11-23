@@ -2,6 +2,7 @@
 .coverage
 .flake8
 .gitignore
+=2.15.0
 Makefile
 README.md
 pyproject.toml
