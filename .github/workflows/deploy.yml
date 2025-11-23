@@ -1,0 +1,67 @@
+name: MLOps CI/CD Pipeline
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  PROJECT_ID: project-37461c1b-635d-4cf2-af5
+  REGION: us-central1
+  BUCKET_NAME: gs://project-37461c1b-635d-4cf2-af5d-mlops-models 
+  
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    permissions:
+      contents: read
+      id-token: write
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+    
+    - name: Authenticate to Google Cloud
+      uses: google-github-actions/auth@v2
+      with:
+        workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+        service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+    
+    - name: Set up Cloud SDK
+      uses: google-github-actions/setup-gcloud@v2
+    
+    - name: Configure Docker for Artifact Registry
+      run: |
+        gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev
+    
+    # Cloud Storage Example
+    - name: Upload to Cloud Storage
+      run: |
+        gsutil cp model.pkl gs://${{ env.BUCKET_NAME }}/models/
+        gsutil ls gs://${{ env.BUCKET_NAME }}
+    
+    # BigQuery Example
+    - name: Load data to BigQuery
+      run: |
+        bq load --autodetect --source_format=CSV \
+          my_dataset.my_table \
+          gs://${{ env.BUCKET_NAME }}/data.csv
+    
+    # Vertex AI Example
+    - name: Submit Vertex AI Training Job
+      run: |
+        gcloud ai custom-jobs create \
+          --region=${{ env.REGION }} \
+          --display-name=training-job-$(date +%Y%m%d-%H%M%S) \
+          --worker-pool-spec=machine-type=n1-standard-4,replica-count=1,container-image-uri=gcr.io/your-image
+    
+    # Cloud Run Example
+    - name: Deploy to Cloud Run
+      run: |
+        gcloud run deploy my-service \
+          --image ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/my-repo/my-image:latest \
+          --platform managed \
+          --region ${{ env.REGION }} \
+          --allow-unauthenticated
