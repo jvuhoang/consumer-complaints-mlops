@@ -213,6 +213,34 @@ jobs:
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
       
+      - name: Set up Python for model conversion
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      
+      - name: Install TensorFlow for model conversion
+        run: |
+          pip install --upgrade pip
+          pip install tensorflow tensorflow-hub
+      
+      - name: Convert Keras model to SavedModel format
+        run: |
+          python - <<EOF
+          import tensorflow as tf
+          import os
+          
+          # Load the Keras model
+          model = tf.keras.models.load_model('models/trained/model.keras')
+          
+          # Save in SavedModel format
+          savedmodel_path = 'models/saved_model'
+          os.makedirs(savedmodel_path, exist_ok=True)
+          model.export(savedmodel_path)
+          
+          print(f"✅ Model converted to SavedModel format at {savedmodel_path}")
+          print(f"Contents: {os.listdir(savedmodel_path)}")
+          EOF
+      
       - name: Upload to GCS and Register Model
         run: |
           # Calculate timestamp and GCS URI
@@ -221,9 +249,14 @@ jobs:
           
           echo "Calculated GCS URI: $GCS_MODEL_URI"
           
-          # Upload model artifacts to GCS
-          gsutil -m cp -r models/trained/* $GCS_MODEL_URI
-          echo "✅ Model artifacts uploaded to: $GCS_MODEL_URI"
+          # Upload SavedModel to GCS (for Vertex AI)
+          gsutil -m cp -r models/saved_model/* $GCS_MODEL_URI
+          echo "✅ SavedModel uploaded to: $GCS_MODEL_URI"
+          
+          # Also upload other artifacts (label encoder, metadata) to a separate location
+          gsutil cp models/trained/label_encoder.pkl gs://${{ secrets.GCS_BUCKET }}/models/production/${TIMESTAMP}/artifacts/
+          gsutil cp models/trained/metadata.json gs://${{ secrets.GCS_BUCKET }}/models/production/${TIMESTAMP}/artifacts/
+          echo "✅ Additional artifacts uploaded"
           
           # Register model to Vertex AI Model Registry
           MODEL_NAME="consumer-complaints-classifier"
