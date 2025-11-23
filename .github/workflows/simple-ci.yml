@@ -26,7 +26,15 @@ jobs:
       - name: Run tests
         run: |
           pytest tests/ -v
-          
+        
+        # --- START NEW LINTING STEP ---
+      - name: Run linting
+        run: |
+          pip install black flake8 isort
+          black --check src/ tests/
+          flake8 src/ tests/ --max-line-length=100
+      # --- END NEW LINTING STEP ---
+      
       - name: Run linting
         run: |
           black --check src/ tests/
