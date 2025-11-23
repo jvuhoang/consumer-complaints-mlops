@@ -212,24 +212,21 @@ jobs:
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
       
-      - name: Calculate GCS URI and Set ENV
-        id: calculate_uri # Give this step a clear ID
+      - name: Calculate GCS URI and Save to File
+        id: calculate_uri
         run: |
           TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-          
-          # Construct the full URI
           GCS_MODEL_URI="gs://${{ secrets.GCS_BUCKET }}/models/production/${TIMESTAMP}/"
           
-          # CRITICAL: Export the clean variable to GITHUB_ENV
-          echo "GCS_MODEL_URI=$GCS_MODEL_URI" >> $GITHUB_ENV
+          # CRITICAL: Save the URI to a file that the next step can read
+          echo "$GCS_MODEL_URI" > gcs_uri.txt
           
           echo "Calculated URI: $GCS_MODEL_URI"
 
       - name: Upload to GCS
-        id: upload
         run: |
-          # The variable is now available via $GITHUB_ENV
-          GCS_MODEL_URI="${{ env.GCS_MODEL_URI }}"
+          # Read the URI from the file
+          GCS_MODEL_URI=$(cat gcs_uri.txt)
           
           if [ -z "$GCS_MODEL_URI" ]; then
             echo "FATAL: GCS_MODEL_URI is empty during upload."
@@ -245,10 +242,9 @@ jobs:
           MODEL_NAME="consumer-complaints-classifier"
           SERVING_IMAGE="us-docker.pkg.dev/vertex-ai/prediction/tf2-cpu.2-11:latest"
           
-          # Access the GCS_MODEL_URI from the environment
-          GCS_URI="${{ env.GCS_MODEL_URI }}" 
+          # Read the URI from the file
+          GCS_URI=$(cat gcs_uri.txt)
           
-          # We've already checked, but one more check won't hurt
           if [ -z "$GCS_URI" ]; then
             echo "FATAL: GCS_URI is empty during registration."
             exit 1
@@ -256,17 +252,18 @@ jobs:
           
           echo "Registering model from URI: $GCS_URI"
           
+          # Run the gcloud command with the URI read from the file
           gcloud ai models upload $MODEL_NAME \
             --project=${{ env.PROJECT_ID }} \
             --region=${{ env.REGION }} \
             --display-name="$MODEL_NAME" \
-            --artifact-uri="$GCS_URI" \ # <--- Uses the clean variable
+            --artifact-uri="$GCS_URI" \ # <--- Uses the file-read variable
             --container-image-uri="$SERVING_IMAGE" \
             --model-server-node-count=1 \
             --allow-zero-node-scaling
           
           echo "✅ Model successfully registered to Vertex AI Model Registry"
-
+          
       - name: Upload summary
         run: |
           echo "## Model Upload and Registration" >> $GITHUB_STEP_SUMMARY
