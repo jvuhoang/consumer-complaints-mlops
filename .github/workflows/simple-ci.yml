@@ -1,57 +1,65 @@
 # .github/workflows/simple-ci.yml
 
-# Replace this entire section with the Workload Identity authentication
-- name: 'dhoan085@uottawa.ca'
-  uses: 'google-github-actions/auth@v2'
-  with:
-    # Use the full string generated in Step 6 of the previous response!
-    workload_identity_provider: 'projects/398906563232/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
-    service_account: 'mlops-cicd@$project-37461c1b-635d-4cf2-af5.iam.gserviceaccount.com'
-
-# Now, any gcloud command run after this step will be authorized by the Service Account
-- name: 'Run gcloud or gsutil Commands'
-  run: |
-    # Example command that would have required the key.json before
-    gcloud ai platform ...
-
 # Start with a simple workflow, expand later
 name: Simple CI
+
 on:
   push:
     branches: [ main, develop ]
   pull_request:
     branches: [ main, develop ]
+
 jobs:
+  # --- JOB 1: Test & Lint Code ---
   test:
     runs-on: ubuntu-latest
-    
+
     steps:
       - uses: actions/checkout@v4
-        
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
-          
+
       - name: Install dependencies
         run: |
           pip install -r requirements.txt
           pip install -r requirements-dev.txt
-          
+          pip install black flake8 isort
+
       - name: Run tests
         run: |
           pytest tests/ -v
-        
-        # --- START NEW LINTING STEP ---
-      - name: Run linting
-        run: |
-          pip install black flake8 isort
-          black --check src/ tests/
-          flake8 src/ tests/ --max-line-length=100
-      # --- END NEW LINTING STEP ---
-      
+
       - name: Run linting
         run: |
           black --check src/ tests/
           flake8 src/ tests/ --max-line-length=100
 
+  ---
+  
+  # --- JOB 2: Authenticate and Run Deployment Commands (Requires Auth) ---
+  # This job depends on the 'test' job passing successfully.
+  deploy:
+    runs-on: ubuntu-latest
+    needs: test # Ensure tests pass before attempting deployment steps
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Replace this entire section with the Workload Identity authentication
+      # --- Workload Identity Step ---
+      - name: 'Authenticate with Google Cloud'
+        uses: 'google-github-actions/auth@v2'
+        with:
+          # Use the full string generated in Step 6 of the previous response!
+          workload_identity_provider: 'projects/398906563232/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
+          service_account: 'mlops-cicd@$project-37461c1b-635d-4cf2-af5.iam.gserviceaccount.com'
+          
+      # Now, any gcloud command run after this step will be authorized by the Service Account
+      - name: 'Run gcloud or gsutil Commands'
+        run: |
+          # Example command that would have required the key.json before
+          gcloud ai platform ...
+          # Add your actual deployment or gcloud commands here
