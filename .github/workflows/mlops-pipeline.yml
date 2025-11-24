@@ -294,13 +294,22 @@ jobs:
               location="${{ env.REGION }}"
           )
           
-          model_version = "${{ needs.model-training.outputs.model_version }}"
-          gcs_path = "${{ needs.upload-model.outputs.gcs_model_path }}"
+          
+          print("Converting model to SavedModel format...")
+          model = tf.keras.models.load_model(
+              f"gs://${{ secrets.GCS_BUCKET }}/models/production/{model_version}/model.keras"
+          )
+
+          # Save as SavedModel (this creates saved_model.pb)
+          model.export(
+              f"gs://${{ secrets.GCS_BUCKET }}/models/production/{model_version}/"
+          )
+          print("Model converted successfully!")
 
           # Upload model to Vertex AI Model Registry
-          model = aiplatform.Model.upload(
+          vertex_model = aiplatform.Model.upload(
               display_name="${{ env.MODEL_DISPLAY_NAME }}",
-              artifact_uri="gs://${{ secrets.GCS_BUCKET }}/models/production/${MODEL_VERSION}",
+              artifact_uri=f"gs://${{ secrets.GCS_BUCKET }}/models/production/{model_version}/",
               serving_container_image_uri="us-docker.pkg.dev/vertex-ai/prediction/tf2-cpu.2-11:latest",
               description=f"Consumer complaints classifier - Version {model_version}",
               labels={
