@@ -343,8 +343,7 @@ jobs:
               }
           )
           
-          print(f"Model registered: {model.resource_name}")
-          
+          print(f"Model registered: {vertex_model.resource_name}")  # Changed from model to vertex_model
           # Save model resource name
           with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
               f.write(f"model_name={vertex_model.resource_name}\n")
