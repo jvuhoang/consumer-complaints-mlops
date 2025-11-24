@@ -113,7 +113,7 @@ jobs:
       - name: Install dependencies
         run: |
           pip install --upgrade pip
-          pip install tensorflow tensorflow-hub
+          pip install tensorflow tensorflow-hub google-cloud-aiplatform
           pip install pytest pytest-cov
           pip install -r requirements.txt || true
       
@@ -287,6 +287,7 @@ jobs:
         run: |
           python - <<EOF
           from google.cloud import aiplatform
+          import tensorflow as tf
           import os
           
           aiplatform.init(
