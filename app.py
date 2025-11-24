@@ -10,6 +10,20 @@ PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "project-37461c1b-635d-4cf2-af5")
 ENDPOINT_ID = os.environ.get("VERTEX_ENDPOINT_ID", "4351135847504936960")
 LOCATION = os.environ.get("GCP_LOCATION", "us-central1")
 
+def get_latest_endpoint():
+    """Get the most recently created endpoint"""
+    endpoints = aiplatform.Endpoint.list(
+        filter='display_name="consumer-complaints-classifier"',  # Optional filter
+        order_by="create_time desc"
+    )
+    if endpoints:
+        return endpoints[0].name.split('/')[-1]
+    return None
+
+# Update in your code
+ENDPOINT_ID = os.environ.get("VERTEX_ENDPOINT_ID") or get_latest_endpoint()
+
+
 # Category mapping
 CATEGORY_MAPPING = {
     0: "Bank account or service",
