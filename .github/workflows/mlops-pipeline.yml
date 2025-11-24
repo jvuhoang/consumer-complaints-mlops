@@ -288,24 +288,33 @@ jobs:
           python - <<EOF
           from google.cloud import aiplatform
           import tensorflow as tf
+          from google.cloud import storage
           import os
           
-          aiplatform.init(
-              project="${{ env.PROJECT_ID }}",
-              location="${{ env.REGION }}"
-          )
-          
-          
-          print("Converting model to SavedModel format...")
-          model = tf.keras.models.load_model(
-              f"gs://${{ secrets.GCS_BUCKET }}/models/production/${{ needs.model-training.outputs.model_version }}/model.keras"
-          )
+          model_version = "${{ needs.model-training.outputs.model_version }}"
 
-          # Save as SavedModel (this creates saved_model.pb)
-          model.export(
-              f"gs://${{ secrets.GCS_BUCKET }}/models/production/${{ needs.model-training.outputs.model_version }}/"
-          )
-          print("Model converted successfully!")
+          # Download model from GCS
+          storage_client = storage.Client()
+          bucket = storage_client.bucket("${{ secrets.GCS_BUCKET }}")
+          blob = bucket.blob(f"models/production/{model_version}/model.keras")
+          blob.download_to_filename("model.keras")
+
+          # Load and convert locally
+          print("Converting model to SavedModel format...")
+          model = tf.keras.models.load_model("model.keras")
+          model.export("saved_model/")
+
+          # Upload SavedModel back to GCS
+          import os
+          for root, dirs, files in os.walk("saved_model/"):
+              for file in files:
+                  local_path = os.path.join(root, file)
+                  gcs_path = local_path.replace("saved_model/", f"models/production/{model_version}/")
+                  blob = bucket.blob(gcs_path)
+                  blob.upload_from_filename(local_path)
+
+          print("Model converted and uploaded successfully!")
+
 
           # Upload model to Vertex AI Model Registry
           vertex_model = aiplatform.Model.upload(
