@@ -289,7 +289,16 @@ jobs:
           from google.cloud import aiplatform
           import tensorflow as tf
           from google.cloud import storage
+          import sys
           import os
+
+          # CRITICAL: Import custom layers before loading the model
+          # Add your project's source code to the path
+          sys.path.insert(0, os.path.join(os.getcwd(), 'src.models')) 
+
+          # Import your custom layer
+          from src.models.use_classifier import USEEmbeddingLayer  # Adjust import path as needed
+
           
           model_version = "${{ needs.model-training.outputs.model_version }}"
 
@@ -299,10 +308,14 @@ jobs:
           blob = bucket.blob(f"models/production/{model_version}/model.keras")
           blob.download_to_filename("model.keras")
 
-          # Load and convert locally
+          # Load model with custom objects
           print("Converting model to SavedModel format...")
-          model = tf.keras.models.load_model("model.keras")
+          model = tf.keras.models.load_model(
+              "model.keras",
+              custom_objects={"USEEmbeddingLayer": USEEmbeddingLayer}
+          )
           model.export("saved_model/")
+
 
           # Upload SavedModel back to GCS
           import os
