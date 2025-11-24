@@ -297,10 +297,13 @@ jobs:
           model_version = "${{ needs.model-training.outputs.model_version }}"
           gcs_path = "${{ needs.upload-model.outputs.gcs_model_path }}"
           
+          MODEL_DIR = 'gs://project-37461c1b-635d-4cf2-af5d-mlops-models/my-model/v1/'
+          model.save(MODEL_DIR)  # This creates saved_model.pb in that directory
+
           # Upload model to Vertex AI Model Registry
           model = aiplatform.Model.upload(
               display_name="${{ env.MODEL_DISPLAY_NAME }}",
-              artifact_uri='gs://project-37461c1b-635d-4cf2-af5d-mlops-models',
+              artifact_uri='gs://project-37461c1b-635d-4cf2-af5d-mlops-models/my-model/v1/',
               serving_container_image_uri="us-docker.pkg.dev/vertex-ai/prediction/tf2-cpu.2-11:latest",
               description=f"Consumer complaints classifier - Version {model_version}",
               labels={
