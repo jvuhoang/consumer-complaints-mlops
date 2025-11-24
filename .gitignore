@@ -18,3 +18,5 @@ serving/Dockerfile
 serving/start.sh
 test_local.py
 test_api.py
+train.yml
+deploy.yml
