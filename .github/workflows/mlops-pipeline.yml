@@ -298,21 +298,21 @@ jobs:
           
           print("Converting model to SavedModel format...")
           model = tf.keras.models.load_model(
-              f"gs://${{ secrets.GCS_BUCKET }}/models/production/{model_version}/model.keras"
+              f"gs://${{ secrets.GCS_BUCKET }}/models/production/${{ needs.model-training.outputs.model_version }}/model.keras"
           )
 
           # Save as SavedModel (this creates saved_model.pb)
           model.export(
-              f"gs://${{ secrets.GCS_BUCKET }}/models/production/{model_version}/"
+              f"gs://${{ secrets.GCS_BUCKET }}/models/production/${{ needs.model-training.outputs.model_version }}/"
           )
           print("Model converted successfully!")
 
           # Upload model to Vertex AI Model Registry
           vertex_model = aiplatform.Model.upload(
               display_name="${{ env.MODEL_DISPLAY_NAME }}",
-              artifact_uri=f"gs://${{ secrets.GCS_BUCKET }}/models/production/{model_version}/",
+              artifact_uri=f"gs://${{ secrets.GCS_BUCKET }}/models/production/${{ needs.model-training.outputs.model_version }}/",
               serving_container_image_uri="us-docker.pkg.dev/vertex-ai/prediction/tf2-cpu.2-11:latest",
-              description=f"Consumer complaints classifier - Version {model_version}",
+              description=f"Consumer complaints classifier - Version ${{ needs.model-training.outputs.model_version }}",
               labels={
                   "version": model_version.replace("_", "-").replace(".", "-")[:63],
                   "environment": "production",
