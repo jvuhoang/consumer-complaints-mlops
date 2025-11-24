@@ -274,7 +274,7 @@ jobs:
       - name: Install dependencies
         run: |
           pip install --upgrade pip
-          pip install google-cloud-aiplatform
+          pip install tensorflow google-cloud-aiplatform
       
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
