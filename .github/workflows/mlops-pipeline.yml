@@ -347,7 +347,7 @@ jobs:
           
           # Save model resource name
           with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
-              f.write(f"model_name={model.resource_name}\n")
+              f.write(f"model_name={vertex_model.resource_name}\n")
           EOF
       
       - name: Registration summary
