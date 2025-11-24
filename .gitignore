@@ -12,3 +12,9 @@ logs/
 google-cloud-cli-darwin-arm.tar
 /google-cloud-sdk
 .gitignore.s
+deploy_to_vertex.py
+Dockerfile.serving
+serving/Dockerfile
+serving/start.sh
+test_local.py
+test_api.py
