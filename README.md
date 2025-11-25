@@ -7,20 +7,23 @@ By using deep learning ([Tensorflow](https://www.tensorflow.org/)/[Keras](https:
 
 
 ## Key Features
-*   Advanced NLP Architectures: Implements two specific deep learning strategies using TensorFlow/Keras:
+*   **Advanced NLP Architectures:** Implements two specific deep learning strategies using TensorFlow/Keras:
       - Standard LSTM: A Long Short-Term Memory network for handling sequential text data.
       - BiLSTM + CNN: A hybrid model combining Bidirectional LSTMs (for past/future context) with Convolutional Neural Networks (for extracting local n-gram features) to maximize classification accuracy.
-*   CI/CD Automation: GitHub Actions manage the CI/CD process, automatically building the Docker image, pushing it to Google Artifact Registry, and triggering model training/deployment on every code update.
-*   Scalable MLOps: Vertex AI is used for managed model training, hosting a centralized Model Registry, and deploying the prediction model to a scalable, low-latency Endpoint.
-*   Data Lake & Persistence: Google BigQuery serves as the central data warehouse for storing raw consumer complaints, feature data, and final prediction outcomes.
-*   Web Serving Layer: A Flask API provides the front-end interface for querying the Vertex AI endpoint, making predictions accessible to internal applications.
+*   **CI/CD Automation:** GitHub Actions manage the CI/CD process, automatically building the Docker image, pushing it to Google Artifact Registry, and triggering model training/deployment on every code update.
+*   **Scalable MLOps:** Vertex AI is used for managed model training, hosting a centralized Model Registry, and deploying the prediction model to a scalable, low-latency Endpoint.
+*   **Data Lake & Persistence:** Google BigQuery serves as the central data warehouse for storing raw consumer complaints, feature data, and final prediction outcomes.
+*   **Web Serving Layer:** A Flask API provides the front-end interface for querying the Vertex AI endpoint, making predictions accessible to internal applications.
 
 ## Dataset Management
 
 **Consumer Complaints**
 Source: originally comes from the US Consumer Finance Complaints
+
 Link of dataset: https://huggingface.co/datasets/milesbutler/consumer_complaints
+
 Data is related to consumer complaints about financial services
+
 Nearly 278k records (rows)
 
 18 Attributions:
@@ -48,7 +51,7 @@ Nearly 278k records (rows)
 | Data Warehouse | Google BigQuery    |   Model Registry, Model Training, and scalable Prediction Endpoints. |
 | CI/CD | GitHub, Git Actions | DSource control and automated build/deploy workflows. |
 | Application Layer    | Flask     |  Lightweight Python web framework for the prediction API. |
-| Containerization | Docker    |    Packaging the application and environment for consistent deployment. |
+
 
 ## Quick Start Setup
 Follow these steps to set up the project locally and connect to your Google Cloud environment.
@@ -74,10 +77,10 @@ Set the following environment variables, typically as secrets in GitHub for CI/C
 | Variable    | Description          | 
 | :-------------: |:-------------:|
 | GCP_PROJECT_ID  | Your Google Cloud Project ID. |
-| GCP_REGION    | The region for Vertex AI (e.g., us-central1).   | 
-| BQ_DATASET_NAME | BigQuery dataset name where tables reside (e.g., complaint_data).  |   
-| ARTIFACT_REGISTRY_REPO | Name of the Docker repository in Artifact Registry.   |   
-
+| REGION    | The region for Vertex AI (e.g., us-central1).   | 
+| GCP_SERVICE_ACCOUNT | Service Account ID on Google Cloud Platform  |   
+| GCP_WORKLOAD_IDENTITY_PROVIDER | Google Cloud Platform Workload Identity Provider   |   
+| GCS_BUCKET | Number of Google Cloud Service Bucket   |   
 
 **Step 3: Run the Flask Prediction Server (Local Testing)**
 
@@ -92,10 +95,12 @@ To run the local API that connects to a deployed Vertex AI Endpoint:
 The full MLOps pipeline is executed via GitHub Actions:
 1. Commit and push your changes to the main branch on GitHub.
 2. The GitHub Action workflow will:
-*   Build the training container (packaging the LSTM and BiLSTM+CNN code).
-*   Push the image to Google Artifact Registry.
-*   Trigger a managed training job. 
-*   Deploy the resulting model to a Vertex AI Endpoint if performance metrics are met.
+*   Run pre-commit hooks (linters, code formatters, unit test).
+*   Trigger a training job (run LSTM and BiLSTM+CNN code).
+*   Upload model to Google Cloud.
+*   Register model with Vertex AI. 
+*   Deploy the resulting model to a Vertex AI Endpoint.
+*   Send notification.
 
 ## Model Monitoring
 
