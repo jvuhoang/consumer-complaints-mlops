@@ -10,9 +10,13 @@ By using deep learning ([Tensorflow](https://www.tensorflow.org/)/[Keras](https:
 *   **Advanced NLP Architectures:** Implements two specific deep learning strategies using TensorFlow/Keras:
       - Standard LSTM: A Long Short-Term Memory network for handling sequential text data.
       - BiLSTM + CNN: A hybrid model combining Bidirectional LSTMs (for past/future context) with Convolutional Neural Networks (for extracting local n-gram features) to maximize classification accuracy.
+
 *   **CI/CD Automation:** GitHub Actions manage the CI/CD process, automatically building the Docker image, pushing it to Google Artifact Registry, and triggering model training/deployment on every code update.
+
 *   **Scalable MLOps:** Vertex AI is used for managed model training, hosting a centralized Model Registry, and deploying the prediction model to a scalable, low-latency Endpoint.
+
 *   **Data Lake & Persistence:** Google BigQuery serves as the central data warehouse for storing raw consumer complaints, feature data, and final prediction outcomes.
+
 *   **Web Serving Layer:** A Flask API provides the front-end interface for querying the Vertex AI endpoint, making predictions accessible to internal applications.
 
 ## Dataset Management
@@ -59,10 +63,9 @@ Follow these steps to set up the project locally and connect to your Google Clou
 **Prerequisites**
 
 1. Python 3.8+
-2. Docker
-3. A Google Cloud Project with Billing Enabled.
-4. The gcloud CLI installed and authenticated.
-5. Necessary GCP APIs enabled (Vertex AI API, BigQuery API, Cloud Build API, Artifact Registry API).
+2. A Google Cloud Project with Billing Enabled.
+3. The gcloud CLI installed and authenticated.
+4. Necessary GCP APIs enabled (Vertex AI API, BigQuery API, Cloud Build API, Artifact Registry API).
 
 **Step 1: Clone the Repository**
 
@@ -120,5 +123,5 @@ Parameters, metrics, artifacts and metadata stored by `Vertex AI` in [Cloud Cons
 
 ## User Guide: 
 
-For detailed instructions on setting up the GCP infrastructure, creating BigQuery tables, and configuring GitHub Actions for CI/CD, please refer to the comprehensive [USER_GUIDE.md]().
+For detailed instructions on setting up the GCP infrastructure, creating BigQuery tables, and configuring GitHub Actions for CI/CD, please refer to the comprehensive [USER_GUIDE.md](https://github.com/jvuhoang/consumer-complaints-mlops/blob/main/USERGUIDE.md).
 
