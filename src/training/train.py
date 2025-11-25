@@ -52,6 +52,11 @@ def use_pretrained_model(args):
     Use pre-trained model from Colab
     Fast deployment strategy - uses high-quality model
     """
+    import tensorflow as tf
+    import keras
+    import re
+    import string
+    
     logger.info("=" * 80)
     logger.info("USING PRE-TRAINED MODEL FROM COLAB")
     logger.info("=" * 80)
@@ -79,20 +84,33 @@ def use_pretrained_model(args):
     logger.info("   Quality: Production-grade (62.6% accuracy)")
     logger.info("   Training: 50K samples, 8 epochs")
     
+    # Define custom standardization function with proper registration
+    def custom_standardization(input_data):
+        """Custom text standardization function"""
+        lowercase = tf.strings.lower(input_data)
+        stripped_html = tf.strings.regex_replace(lowercase, '<br />', ' ')
+        return tf.strings.regex_replace(stripped_html,
+                                        f'[{re.escape(string.punctuation)}]', '')
+    
+    # Register the function globally so Keras can find it
+    keras.saving.register_keras_serializable(package='Custom')(custom_standardization)
+    
     # Test loading the model to verify it works
     try:
-        # Add project root to path
-        project_root = Path(__file__).parent.parent.parent
-        sys.path.insert(0, str(project_root))
-        
-        from src.models.model_loader import load_complaint_model
-        model = load_complaint_model(pretrained_model)
+        logger.info("🔄 Attempting to load model with custom objects...")
+        model = keras.models.load_model(pretrained_model)
         logger.info("✅ Model loaded successfully for verification")
+        logger.info(f"   Model input shape: {model.input_shape}")
+        logger.info(f"   Model output shape: {model.output_shape}")
     except Exception as e:
         logger.error(f"❌ Failed to load model: {e}")
-        logger.error(f"   Project root: {project_root}")
-        logger.error(f"   sys.path: {sys.path[:3]}")
+        logger.error("\n💡 This model requires retraining with the decorator.")
+        logger.error("   Please go back to Google Colab and:")
+        logger.error("   1. Add @keras.saving.register_keras_serializable() to custom_standardization")
+        logger.error("   2. Retrain and save the model")
+        logger.error("   3. Download the new model file")
         return 1
+    
 
     # Copy model
     shutil.copy(pretrained_model, output_path / 'model.keras')
