@@ -368,26 +368,17 @@ jobs:
 
           model = tf.keras.models.load_model('model.keras', custom_objects={"custom_standardization": custom_standardization})
 
-          # First export normally to get the model structure
-          temp_dir = tempfile.mkdtemp()
-          model.export(temp_dir)
+          # Simple wrapper function
+          @tf.function(input_signature=[tf.TensorSpec(shape=[None], dtype=tf.string)])
+          def serve_fn(text):
+              return {'output': model(text)}
 
-          # Load it back and re-save with proper signature
-          loaded = tf.saved_model.load(temp_dir)
-
-          # Create wrapper with correct signature
-          class Wrapper(tf.Module):
-              def __init__(self, model):
-                  self.model = model
-              
-              @tf.function(input_signature=[tf.TensorSpec([None], tf.string)])
-              def __call__(self, text):
-                  return self.model(text)
-
-          wrapper = Wrapper(loaded)
-          tf.saved_model.save(wrapper, "saved_model/")
-          shutil.rmtree(temp_dir)
-
+          # Save with just the function, not a class
+          tf.saved_model.save(
+              model, 
+              "saved_model/",
+              signatures={'serving_default': serve_fn}
+          )
           #model.export("saved_model/")
 
 
