@@ -379,7 +379,8 @@ def predict_complaint():
             endpoint_name=f"projects/{PROJECT_ID}/locations/{LOCATION}/endpoints/{ENDPOINT_ID}"
         )
         
-        response = endpoint.predict(instances=[{"text": complaint_text}])
+        #response = endpoint.predict(instances=[{"text": complaint_text}])
+        response = endpoint.predict(instances=[complaint_text])
         predictions = response.predictions
         
         # Process prediction
