@@ -78,9 +78,9 @@ Set the following environment variables, typically as secrets in GitHub for CI/C
 | :-------------: |:-------------:|
 | GCP_PROJECT_ID  | Your Google Cloud Project ID. |
 | REGION    | The region for Vertex AI (e.g., us-central1).   | 
-| GCP_SERVICE_ACCOUNT | Service Account ID on Google Cloud Platform  |   
-| GCP_WORKLOAD_IDENTITY_PROVIDER | Google Cloud Platform Workload Identity Provider   |   
-| GCS_BUCKET | Number of Google Cloud Service Bucket   |   
+| GCP_SERVICE_ACCOUNT | The Service Account email ID on Google Cloud Platform used for operations.  |   
+| GCP_WORKLOAD_IDENTITY_PROVIDER | The full identifier for the GCP Workload Identity Provider (for passwordless auth).   |   
+| GCS_BUCKET | The name of the Google Cloud Storage Bucket used for artifacts.  |   
 
 
 **Step 3: Trigger the MLOps Pipeline**

@@ -1,100 +1,135 @@
-# Consumer Complaint Category Routing Pipeline (TensorFlow/GCP MLOps)
+# Consumer Complaint Category Routing: Detailed User Guide
 
-## Project Overview
-This project implements a scalable, end-to-end Machine Learning Operations (MLOps) pipeline for multi-class classification of consumer complaints. The primary goal is to automatically predict the correct category of a new complaint, enabling financial institutions to route the customer immediately to the correct internal department (e.g., Credit Card, Mortgage, Debt Collection).
+This guide provides a comprehensive walkthrough for setting up, configuring, and executing the MLOps pipeline for the Consumer Complaint Category Routing Pipeline.
 
-By using deep learning ([Tensorflow](https://www.tensorflow.org/)/[Keras](https://keras.io/)), [Google Cloud services](https://console.cloud.google.com), and [Vertex AI](https://cloud.google.com/vertex-ai) platform the system ensures highly accurate predictions. It leverages a Standard LSTM for baseline sequence modeling and an Advanced BiLSTM + CNN hybrid architecture to capture both long-term dependencies and local textual features.
-
-
-## Key Features
-*   Advanced NLP Architectures: Implements two specific deep learning strategies using TensorFlow/Keras:
-
-- Standard LSTM: A Long Short-Term Memory network for handling sequential text data.
-
-- BiLSTM + CNN: A hybrid model combining Bidirectional LSTMs (for past/future context) with Convolutional Neural Networks (for extracting local n-gram features) to maximize classification accuracy.
-
-*   CI/CD Automation: GitHub Actions manage the CI/CD process, automatically building the Docker image, pushing it to Google Artifact Registry, and triggering model training/deployment on every code update.
-
-*   Scalable MLOps: Vertex AI is used for managed model training, hosting a centralized Model Registry, and deploying the prediction model to a scalable, low-latency Endpoint.
-
-*   Data Lake & Persistence: Google BigQuery serves as the central data warehouse for storing raw consumer complaints, feature data, and final prediction outcomes.
-
-*   Web Serving Layer: A Flask API provides the front-end interface for querying the Vertex AI endpoint, making predictions accessible to internal applications.
+This project utilizes TensorFlow/Keras for Deep Learning (LSTM & BiLSTM+CNN), Google Cloud Vertex AI for MLOps, and GitHub Actions for CI/CD automation.
 
 
-## Technology Stack
 
-| Category    | Technology           | Purpose |
-| :-------------: |:-------------:| :---------------------------:|
-| ML Framework   | TensorFlow, Keras | Development of LSTM and BiLSTM+CNN models. |
-| Cloud Platform     | Google Cloud Console     |   Primary cloud environment and resource management. |
-| Data Warehouse | Google BigQuery    |   Model Registry, Model Training, and scalable Prediction Endpoints. |
-| CI/CD | GitHub, Git Actions | DSource control and automated build/deploy workflows. |
-| Application Layer    | Flask     |  Lightweight Python web framework for the prediction API. |
-| Containerization | Docker    |    Packaging the application and environment for consistent deployment. |
+## 1. Environment & Infrastructure Setup
 
-## Quick Start Setup
-Follow these steps to set up the project locally and connect to your Google Cloud environment.
+**1.1. Prerequisites**
+Ensure your local or cloud environment meets the following requirements:
+*   Python: Version 3.8+
+*   Google Cloud Platform (GCP):
+        *   A Project with Billing Enabled.
+        *   gcloud CLI installed and authenticated.
+        *   APIs Enabled: Vertex AI API, BigQuery API, Cloud Build API, Artifact Registry API.
 
-**Prerequisites**
 
-1. Python 3.8+
-2. Docker
-3. A Google Cloud Project with Billing Enabled.
-4. The gcloud CLI installed and authenticated.
-5. Necessary GCP APIs enabled (Vertex AI API, BigQuery API, Cloud Build API, Artifact Registry API).
+**1.2. Dataset Information**
 
-**Step 1: Clone the Repository**
+The model is trained on the Consumer Finance Complaints dataset.
+
+*   Source: HuggingFace - milesbutler/consumer_complaints
+*   Volume: Approximately 278,000 records.
+*   Key Attributes:
+        *   Date received
+        *   Product / Sub-product (Target Category)
+        *   Issue / Sub-issue
+        *   Consumer complaint narrative (Input Text)
+        *   Company public response
+        *   Company information (Name, State, Zip)
+        *   Tags, Consent, Submission method
+        *   Timely response, Consumer disputed, Complaint ID
+
+
+## 2. Configuration & Credentials
+
+**2.1. Cloning the Repository**
 
 ```bash
 git clone [https://github.com/jvuhoang/consumer-complaints-mlops.git](https://github.com/jvuhoang/consumer-complaints-mlops.git)
 cd consumer-complaints-mlops
 ```
 
-**Step 2: Configure Environment Variables**
-Set the following environment variables, typically as secrets in GitHub for CI/CD, and locally for development:
+**2.2. Environment Variables**
+
+To enable the CI/CD pipeline and local development, you must configure the following environment variables. For GitHub Actions, add these as Repository Secrets.
 
 | Variable    | Description          | 
 | :-------------: |:-------------:|
 | GCP_PROJECT_ID  | Your Google Cloud Project ID. |
-| GCP_REGION    | The region for Vertex AI (e.g., us-central1).   | 
-| BQ_DATASET_NAME | BigQuery dataset name where tables reside (e.g., complaint_data).  |   
-| ARTIFACT_REGISTRY_REPO | Name of the Docker repository in Artifact Registry.   |   
+| REGION    | The region for Vertex AI (e.g., us-central1).   | 
+| GCP_SERVICE_ACCOUNT | The Service Account email ID on Google Cloud Platform used for operations.  |   
+| GCP_WORKLOAD_IDENTITY_PROVIDER | The full identifier for the GCP Workload Identity Provider (for passwordless auth).   |   
+| GCS_BUCKET | The name of the Google Cloud Storage Bucket used for artifacts.  | 
 
 
-**Step 3: Run the Flask Prediction Server (Local Testing)**
+## 3. The MLOps Pipeline (CI/CD)
 
-To run the local API that connects to a deployed Vertex AI Endpoint:
-1. Install dependencies: pip install -r requirements.txt 
-2. Set endpoint details: export VERTEX_ENDPOINT_ID=<Your_Endpoint_ID>
-3. Run the application: python app.py
+The pipeline is fully automated via GitHub Actions. It is triggered automatically when code is pushed to the main branch.
+
+**3.1. Pipeline Stages**
+
+1. Pre-commit Hooks:
+*   Runs linters and code formatters.
+*   Executes unit tests to ensure code integrity.
+
+2. Training Job Trigger:
+*   Builds the training container.
+*   Executes the training job on Vertex AI using the Standard LSTM and Advanced BiLSTM + CNN architectures.
+
+3. Model Upload:
+*   Uploads the trained model artifacts to Google Cloud Storage.
+
+4. Model Registration:
+*   Registers the model version in the Vertex AI Model Registry.
+
+5. Deployment:
+*   Deploys the registered model to a Vertex AI Endpoint for real-time prediction.
+
+6. Notification:
+*   Sends a notification (e.g., email or Slack) regarding the deployment status.
 
 
-**Step 4: Trigger the MLOps Pipeline**
+## 4. Local Testing & Prediction Server
 
-The full MLOps pipeline is executed via GitHub Actions:
-1. Commit and push your changes to the main branch on GitHub.
-2. The GitHub Action workflow will:
-*   Build the training container (packaging the LSTM and BiLSTM+CNN code).
-*   Push the image to Google Artifact Registry.
-*   Trigger a managed training job. 
-*   Deploy the resulting model to a Vertex AI Endpoint if performance metrics are met.
-
-
-## User Guide: 
-
-For detailed instructions on setting up the GCP infrastructure, creating BigQuery tables, and configuring GitHub Actions for CI/CD, please refer to the comprehensive [USER_GUIDE.md]().
-
-
-## Other files:
-## Testing
+To test the application logic locally or run the web interface:
+**1. Install Dependencies:**
 ```bash
-pytest tests/
+pip install -r requirements.txt
 ```
 
-## Training
+**2. Configure Endpoint: Set the ID of your deployed Vertex AI endpoint.**
 ```bash
-python src/training/train.py
+export VERTEX_ENDPOINT_ID=<Your_Endpoint_ID>
 ```
-# Test CI/CD
-# CI/CD Test
+
+**3. Run the Flask App:**
+```bash
+python app.py
+```
+The application will launch, allowing you to send complaint text and receive category predictions via the API.
+
+
+## 5. Model Monitoring & Metadata
+
+After deployment, the system utilizes Google Cloud's native tools to ensure reliability.
+**5.1. Vertex AI Model Monitoring**
+
+To detect performance degradation, Model Monitoring is configured for the deployed endpoint:
+
+*   Skew & Drift Detection: Alerts are triggered if the input data distribution deviates significantly from the training data.
+
+*   Monitoring Jobs:
+        *   Create monitoring jobs for all models under an endpoint.
+        *   List active monitoring jobs.
+        *   Pause or delete jobs when no longer needed.
+*   Artifacts: Access statistical artifacts produced by the monitoring jobs for deep analysis.
+
+**5.2. Metadata Tracking**
+
+All pipeline executions are tracked using Vertex AI Metadata:
+
+*   Parameters: Hyperparameters used during training.
+*   Metrics: Accuracy, Loss, and other evaluation metrics.
+*   Artifacts: Lineage tracking for Datasets, Models, and Endpoints.
+
+All metadata is visualizable and queryable via the Google Cloud Console.
+
+
+
+
+
+
