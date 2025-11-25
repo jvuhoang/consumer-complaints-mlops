@@ -322,7 +322,7 @@ jobs:
                   def register(*a, **kw):
                       def _d(fn): return fn
                       return _d
-
+          @keras.saving.register_keras_serializable()          
           register(package='Custom')(custom_standardization)
           def custom_standardization(input_data):
               lowercase = tf.strings.lower(input_data)
