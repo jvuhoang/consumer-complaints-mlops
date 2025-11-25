@@ -306,8 +306,31 @@ jobs:
           # Download model from GCS
           storage_client = storage.Client()
           bucket = storage_client.bucket("${{ secrets.GCS_BUCKET }}")
-          blob = bucket.blob(f"models/production/{model_version}/model.keras")
-          blob.download_to_filename("model.keras")
+          #blob = bucket.blob(f"models/production/{model_version}/model.keras")
+          #blob.download_to_filename("model.keras")
+          # Download model from GCS - check multiple possible locations
+          model_downloaded = False
+          possible_paths = [
+              f"models/production/{model_version}/model.keras",
+              f"models/production/{model_version}/complete_complaint_classifier_tf.keras",
+          ]
+          
+          for gcs_path in possible_paths:
+              try:
+                  print(f"Attempting to download from GCS: {gcs_path}")
+                  blob = bucket.blob(gcs_path)
+                  if blob.exists():
+                      blob.download_to_filename("model.keras")
+                      print(f"✅ Successfully downloaded from: {gcs_path}")
+                      model_downloaded = True
+                      break
+              except Exception as e:
+                  print(f"Failed to download from {gcs_path}: {e}")
+          
+          if not model_downloaded:
+              raise FileNotFoundError(
+                  f"Could not find model in GCS bucket. Tried paths: {possible_paths}"
+              )
 
           # Load with custom function
           # Register custom standardization function with proper decorator
