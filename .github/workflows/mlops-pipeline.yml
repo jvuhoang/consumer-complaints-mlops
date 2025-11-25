@@ -370,11 +370,11 @@ jobs:
           def serve(text):
               return model(text)
 
-          # Export with proper signature
+          # Save with explicit signatures
           tf.saved_model.save(
-              serving_model,
+              model,
               "saved_model/",
-              signatures={'serving_default': serving_model.serving_fn}
+              signatures={'serving_default': serve}
           )
 
 
