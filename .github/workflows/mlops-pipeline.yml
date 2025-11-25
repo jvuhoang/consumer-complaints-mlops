@@ -239,7 +239,6 @@ jobs:
         run: |
           MODEL_VERSION=${{ needs.model-training.outputs.model_version }}
           GCS_PATH="gs://${{ secrets.GCS_BUCKET }}/models/production/${MODEL_VERSION}"
-          gsutil -o GSUtil:parallel_composite_upload_threshold=150M cp -r models/trained/* gs://${{ secrets.GCS_BUCKET }}/models/production/
           
           gsutil -m cp -r models/trained/* ${GCS_PATH}/
           echo "gcs_path=${GCS_PATH}" >> $GITHUB_OUTPUT
@@ -292,94 +291,31 @@ jobs:
           from google.cloud import storage
           import sys
           import os
-          import keras
+
 
           # CRITICAL: Import custom layers before loading the model
           # Add your project's source code to the path
           sys.path.insert(0, os.path.join(os.getcwd(), 'src.models')) 
-
+          
           # Import your custom layer
           from src.models.use_classifier import USEEmbeddingLayer  # Adjust import path as needed
-
           
           model_version = "${{ needs.model-training.outputs.model_version }}"
 
           # Download model from GCS
           storage_client = storage.Client()
           bucket = storage_client.bucket("${{ secrets.GCS_BUCKET }}")
-          #blob = bucket.blob(f"models/production/{model_version}/model.keras")
-          #blob.download_to_filename("model.keras")
-          # Download model from GCS - check multiple possible locations
-          model_downloaded = False
-          possible_paths = [
-              f"models/production/{model_version}/model.keras",
-              f"models/production/{model_version}/complete_complaint_classifier_tf.keras",
-          ]
-          
-          for gcs_path in possible_paths:
-              try:
-                  print(f"Attempting to download from GCS: {gcs_path}")
-                  blob = bucket.blob(gcs_path)
-                  if blob.exists():
-                      blob.download_to_filename("model.keras")
-                      print(f"✅ Successfully downloaded from: {gcs_path}")
-                      model_downloaded = True
-                      break
-              except Exception as e:
-                  print(f"Failed to download from {gcs_path}: {e}")
-          
-          if not model_downloaded:
-              raise FileNotFoundError(
-                  f"Could not find model in GCS bucket. Tried paths: {possible_paths}"
-              )
+          blob = bucket.blob(f"models/production/{model_version}/model.keras")
+          blob.download_to_filename("model.keras")
 
-          # Load with custom function
-          # Register custom standardization function with proper decorator
-          try:
-              # Try TensorFlow's register first (TF 2.16+)
-              from tensorflow.keras.saving import register_keras_serializable
-          except ImportError:
-              try:
-                  # Fall back to standalone Keras 3
-                  from keras.saving import register_keras_serializable
-              except ImportError:
-                  # Fallback for older TF versions
-                  register_keras_serializable = tf.keras.utils.register_keras_serializable
-          
-        
-          @register_keras_serializable(package='Custom', name='custom_standardization')
-          def custom_standardization(input_data):
-              """Text preprocessing function - must match training exactly"""
-              lowercase = tf.strings.lower(input_data)
-              no_html = tf.strings.regex_replace(lowercase, '<[^>]+>', ' ')
-              no_urls = tf.strings.regex_replace(no_html, r'http\S+|www\S+', ' ')
-              no_emails = tf.strings.regex_replace(no_urls, r'\S+@\S+', ' ')
-              no_redacted = tf.strings.regex_replace(no_emails, r'x{2,}', ' ')
-              no_numbers = tf.strings.regex_replace(no_redacted, r'\d+', ' ')
-              no_punct = tf.strings.regex_replace(no_numbers, r'[^a-z\s\-]', ' ')
-              cleaned = tf.strings.regex_replace(no_punct, r'\s+', ' ')
-              return tf.strings.strip(cleaned)
-
-          # Load the .keras model
-          #model = tf.keras.models.load_model('model.keras', custom_objects={"custom_standardization": custom_standardization})
-          #model.export("saved_model/")
-          import tempfile
-          import shutil
-
-          model = tf.keras.models.load_model('model.keras', custom_objects={"custom_standardization": custom_standardization})
-
-          # Simple wrapper function
-          @tf.function(input_signature=[tf.TensorSpec(shape=[None], dtype=tf.string)])
-          def serve_fn(text):
-              return {'output': model(text)}
-
-          # Save with just the function, not a class
-          tf.saved_model.save(
-              model, 
-              "saved_model/",
-              signatures={'serving_default': serve_fn}
+          # Load model with custom objects
+          print("Converting model to SavedModel format...")
+          model = tf.keras.models.load_model(
+              "model.keras",
+              custom_objects={"USEEmbeddingLayer": USEEmbeddingLayer}
           )
-          #model.export("saved_model/")
+          model.export("saved_model/")
+
 
 
           # Upload SavedModel back to GCS
