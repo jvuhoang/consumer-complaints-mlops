@@ -361,7 +361,7 @@ jobs:
               return tf.strings.strip(cleaned)
 
           # Load the .keras model
-          model = tf.keras.models.load_model('complete_complaint_classifier_tf.keras', custom_objects={"custom_standardization": custom_standardization})
+          model = tf.keras.models.load_model('model.keras', custom_objects={"custom_standardization": custom_standardization})
           model.export("saved_model/")
 
 
