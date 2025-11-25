@@ -240,7 +240,7 @@ jobs:
           MODEL_VERSION=${{ needs.model-training.outputs.model_version }}
           GCS_PATH="gs://${{ secrets.GCS_BUCKET }}/models/production/${MODEL_VERSION}"
           
-          gsutil -m cp -r models/trained/* ${GCS_PATH}/
+          gcloud storage cp -r model-package/* ${GCS_PATH}/
           echo "gcs_path=${GCS_PATH}" >> $GITHUB_OUTPUT
           echo "✅ Model uploaded to: ${GCS_PATH}"
       
