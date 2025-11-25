@@ -239,6 +239,7 @@ jobs:
         run: |
           MODEL_VERSION=${{ needs.model-training.outputs.model_version }}
           GCS_PATH="gs://${{ secrets.GCS_BUCKET }}/models/production/${MODEL_VERSION}"
+          gsutil -o GSUtil:parallel_composite_upload_threshold=150M cp -r models/trained/* gs://${{ secrets.GCS_BUCKET }}/models/production/
           
           gsutil -m cp -r models/trained/* ${GCS_PATH}/
           echo "gcs_path=${GCS_PATH}" >> $GITHUB_OUTPUT
