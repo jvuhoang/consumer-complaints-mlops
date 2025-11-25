@@ -8,41 +8,24 @@ By using deep learning ([Tensorflow](https://www.tensorflow.org/)/[Keras](https:
 
 ## Key Features
 *   Advanced NLP Architectures: Implements two specific deep learning strategies using TensorFlow/Keras:
-      - Standard LSTM: A Long Short-Term Memory network for handling sequential text data.
-      - BiLSTM + CNN: A hybrid model combining Bidirectional LSTMs (for past/future context) with Convolutional Neural Networks (for extracting local n-gram features) to maximize classification accuracy.
+
+- Standard LSTM: A Long Short-Term Memory network for handling sequential text data.
+
+- BiLSTM + CNN: A hybrid model combining Bidirectional LSTMs (for past/future context) with Convolutional Neural Networks (for extracting local n-gram features) to maximize classification accuracy.
+
 *   CI/CD Automation: GitHub Actions manage the CI/CD process, automatically building the Docker image, pushing it to Google Artifact Registry, and triggering model training/deployment on every code update.
+
 *   Scalable MLOps: Vertex AI is used for managed model training, hosting a centralized Model Registry, and deploying the prediction model to a scalable, low-latency Endpoint.
+
 *   Data Lake & Persistence: Google BigQuery serves as the central data warehouse for storing raw consumer complaints, feature data, and final prediction outcomes.
+
 *   Web Serving Layer: A Flask API provides the front-end interface for querying the Vertex AI endpoint, making predictions accessible to internal applications.
 
-## Dataset Management
-
-**Consumer Complaints**
-Source: originally comes from the US Consumer Finance Complaints
-Link of dataset: https://huggingface.co/datasets/milesbutler/consumer_complaints
-Data is related to consumer complaints about financial services
-Nearly 278k records (rows)
-
-18 Attributions:
-*   Date received
-*   Product, sub-product
-*   Issue, sub-issue
-*   Consumer complaint
-*   Company public response
-*   Company information: company, states, zip code
-*   Tag
-*   Consumer consent provided
-*   Submitted via
-*   Date sent to Company
-*   Company response to consumer
-*   Timely response
-*   Consumer disputed
-*   Complaint ID
 
 ## Technology Stack
 
 | Category    | Technology           | Purpose |
-| :------------- |:-------------:| :---------------------------:|
+| :-------------: |:-------------:| :---------------------------:|
 | ML Framework   | TensorFlow, Keras | Development of LSTM and BiLSTM+CNN models. |
 | Cloud Platform     | Google Cloud Console     |   Primary cloud environment and resource management. |
 | Data Warehouse | Google BigQuery    |   Model Registry, Model Training, and scalable Prediction Endpoints. |
@@ -97,23 +80,21 @@ The full MLOps pipeline is executed via GitHub Actions:
 *   Trigger a managed training job. 
 *   Deploy the resulting model to a Vertex AI Endpoint if performance metrics are met.
 
-## Model Monitoring
-
-After a model is deployed in for prediction serving, continuous monitoring is set up to ensure that the model continue to perform as expected. Configure [Vertex AI Model Monitoring](https://cloud.google.com/vertex-ai/docs/model-monitoring/overview?hl=nn) for skew and drift detection:
-
-1. Set skew and drift threshold.
-2. Create a monitoring job for all the models under and endpoint.
-3. List the monitoring jobs.
-4. List artifacts produced by monitoring job.
-5. Pause and delete the monitoring job.
-
-
-## Metadata Tracking
-
-Parameters, metrics, artifacts and metadata stored by `Vertex AI` in [Cloud Console](https://console.cloud.google.com/vertex-ai).
-
 
 ## User Guide: 
 
 For detailed instructions on setting up the GCP infrastructure, creating BigQuery tables, and configuring GitHub Actions for CI/CD, please refer to the comprehensive [USER_GUIDE.md]().
 
+
+## Other files:
+## Testing
+```bash
+pytest tests/
+```
+
+## Training
+```bash
+python src/training/train.py
+```
+# Test CI/CD
+# CI/CD Test
