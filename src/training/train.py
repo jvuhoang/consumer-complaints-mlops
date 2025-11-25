@@ -79,6 +79,15 @@ def use_pretrained_model(args):
     logger.info("   Quality: Production-grade (62.6% accuracy)")
     logger.info("   Training: 50K samples, 8 epochs")
     
+    # Test loading the model to verify it works
+    try:
+        from src.models.model_loader import load_complaint_model
+        model = load_complaint_model(pretrained_model)
+        logger.info("✅ Model loaded successfully for verification")
+    except Exception as e:
+        logger.error(f"❌ Failed to load model: {e}")
+        return 1
+
     # Copy model
     shutil.copy(pretrained_model, output_path / 'model.keras')
     logger.info(f"✅ Copied model to: {output_path / 'model.keras'}")
