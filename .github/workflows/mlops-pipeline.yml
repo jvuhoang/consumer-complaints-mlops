@@ -291,6 +291,7 @@ jobs:
           from google.cloud import storage
           import sys
           import os
+          import keras
 
           # CRITICAL: Import custom layers before loading the model
           # Add your project's source code to the path
@@ -322,7 +323,7 @@ jobs:
                   def register(*a, **kw):
                       def _d(fn): return fn
                       return _d
-          @keras.saving.register_keras_serializable()          
+        
           register(package='Custom')(custom_standardization)
           def custom_standardization(input_data):
               lowercase = tf.strings.lower(input_data)
