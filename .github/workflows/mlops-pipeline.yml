@@ -308,12 +308,21 @@ jobs:
           blob = bucket.blob(f"models/production/{model_version}/model.keras")
           blob.download_to_filename("model.keras")
 
-          # Load model with custom objects
-          print("Converting model to SavedModel format...")
-          model = tf.keras.models.load_model(
-              "model.keras",
-              custom_objects={"USEEmbeddingLayer": USEEmbeddingLayer}
-          )
+          # Load with custom function
+          @tf.keras.utils.register_keras_serializable(package='Custom', name='custom_standardization')
+          def custom_standardization(input_data):
+              lowercase = tf.strings.lower(input_data)
+              no_html = tf.strings.regex_replace(lowercase, '<[^>]+>', ' ')
+              no_urls = tf.strings.regex_replace(no_html, r'http\S+|www\S+', ' ')
+              no_emails = tf.strings.regex_replace(no_urls, r'\S+@\S+', ' ')
+              no_redacted = tf.strings.regex_replace(no_emails, r'x{2,}', ' ')
+              no_numbers = tf.strings.regex_replace(no_redacted, r'\d+', ' ')
+              no_punct = tf.strings.regex_replace(no_numbers, r'[^a-z\s\-]', ' ')
+              cleaned = tf.strings.regex_replace(no_punct, r'\s+', ' ')
+              return tf.strings.strip(cleaned)
+
+          # Load the .keras model
+          model = tf.keras.models.load_model('complete_complaint_classifier_tf.keras')
           model.export("saved_model/")
 
 

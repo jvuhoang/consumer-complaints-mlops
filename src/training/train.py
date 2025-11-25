@@ -52,11 +52,7 @@ def use_pretrained_model(args):
     Use pre-trained model from Colab
     Fast deployment strategy - uses high-quality model
     """
-    import tensorflow as tf
-    import keras
-    import re
-    import string
-    
+
     logger.info("=" * 80)
     logger.info("USING PRE-TRAINED MODEL FROM COLAB")
     logger.info("=" * 80)
@@ -83,18 +79,7 @@ def use_pretrained_model(args):
     logger.info("   Source: Google Colab T4 GPU")
     logger.info("   Quality: Production-grade (62.6% accuracy)")
     logger.info("   Training: 50K samples, 8 epochs")
-    
-    # Define custom standardization function with proper registration
-    def custom_standardization(input_data):
-        """Custom text standardization function"""
-        lowercase = tf.strings.lower(input_data)
-        stripped_html = tf.strings.regex_replace(lowercase, '<br />', ' ')
-        return tf.strings.regex_replace(stripped_html,
-                                        f'[{re.escape(string.punctuation)}]', '')
-    
-    # Register the function globally so Keras can find it
-    keras.saving.register_keras_serializable(package='Custom')(custom_standardization)
-    
+
     # Test loading the model to verify it works
     try:
         logger.info("🔄 Attempting to load model with custom objects...")
