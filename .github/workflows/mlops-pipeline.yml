@@ -365,24 +365,24 @@ jobs:
           #model.export("saved_model/")
           model = tf.keras.models.load_model('model.keras', custom_objects={"custom_standardization": custom_standardization})
 
-            # Create a wrapper that accepts batched input properly
-            class ServingModel(tf.Module):
-                def __init__(self, model):
-                    super().__init__()
-                    self.model = model
-                
-                @tf.function(input_signature=[tf.TensorSpec(shape=[None], dtype=tf.string)])
-                def serving_fn(self, text):
-                    return self.model(text)
+          # Create a wrapper that accepts batched input properly
+          class ServingModel(tf.Module):
+              def __init__(self, model):
+                  super().__init__()
+                  self.model = model
+              
+              @tf.function(input_signature=[tf.TensorSpec(shape=[None], dtype=tf.string)])
+              def serving_fn(self, text):
+                  return self.model(text)
 
-            serving_model = ServingModel(model)
+          serving_model = ServingModel(model)
 
-            # Export with proper signature
-            tf.saved_model.save(
-                serving_model,
-                "saved_model/",
-                signatures={'serving_default': serving_model.serving_fn}
-            )
+          # Export with proper signature
+          tf.saved_model.save(
+              serving_model,
+              "saved_model/",
+              signatures={'serving_default': serving_model.serving_fn}
+          )
 
 
           # Upload SavedModel back to GCS
