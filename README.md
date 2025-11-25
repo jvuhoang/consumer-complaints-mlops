@@ -82,15 +82,8 @@ Set the following environment variables, typically as secrets in GitHub for CI/C
 | GCP_WORKLOAD_IDENTITY_PROVIDER | Google Cloud Platform Workload Identity Provider   |   
 | GCS_BUCKET | Number of Google Cloud Service Bucket   |   
 
-**Step 3: Run the Flask Prediction Server (Local Testing)**
 
-To run the local API that connects to a deployed Vertex AI Endpoint:
-1. Install dependencies: pip install -r requirements.txt 
-2. Set endpoint details: export VERTEX_ENDPOINT_ID=<Your_Endpoint_ID>
-3. Run the application: python app.py
-
-
-**Step 4: Trigger the MLOps Pipeline**
+**Step 3: Trigger the MLOps Pipeline**
 
 The full MLOps pipeline is executed via GitHub Actions:
 1. Commit and push your changes to the main branch on GitHub.
@@ -101,6 +94,13 @@ The full MLOps pipeline is executed via GitHub Actions:
 *   Register model with Vertex AI. 
 *   Deploy the resulting model to a Vertex AI Endpoint.
 *   Send notification.
+
+**Step 4: Run the Flask Prediction Server (Local Testing)**
+
+To run the local API that connects to a deployed Vertex AI Endpoint:
+1. Install dependencies: pip install -r requirements.txt 
+2. Set endpoint details: export VERTEX_ENDPOINT_ID=<Your_Endpoint_ID>
+3. Run the application: python app.py
 
 ## Model Monitoring
 
