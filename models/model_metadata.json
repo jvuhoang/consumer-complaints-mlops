@@ -1,19 +1,19 @@
 {
   "model_name": "bilstm_cnn_advanced",
   "version": "1.0.0",
-  "training_date": "2025-11-25T07:21:23.691935",
+  "training_date": "2025-11-25T20:13:49.364058",
   "framework": "TensorFlow",
   "keras_version": "2.16.2",
   "best_config": "bilstm_cnn_advanced",
   "performance": {
-    "test_accuracy": 0.6626666784286499,
-    "test_top3_accuracy": 0.9175999760627747,
-    "validation_accuracy": 0.6836000084877014,
-    "test_loss": 0.960161030292511
+    "test_accuracy": 0.6624000072479248,
+    "test_top3_accuracy": 0.9107999801635742,
+    "validation_accuracy": 0.6750666499137878,
+    "test_loss": 1.052065134048462
   },
   "training_info": {
     "epochs_completed": 8,
-    "training_time_minutes": 82.95169904999999,
+    "training_time_minutes": 88.54178653333334,
     "batch_size": 128,
     "learning_rate": 0.001
   },
