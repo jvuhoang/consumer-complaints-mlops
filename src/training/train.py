@@ -81,11 +81,17 @@ def use_pretrained_model(args):
     
     # Test loading the model to verify it works
     try:
+        # Add project root to path
+        project_root = Path(__file__).parent.parent.parent
+        sys.path.insert(0, str(project_root))
+        
         from src.models.model_loader import load_complaint_model
         model = load_complaint_model(pretrained_model)
         logger.info("✅ Model loaded successfully for verification")
     except Exception as e:
         logger.error(f"❌ Failed to load model: {e}")
+        logger.error(f"   Project root: {project_root}")
+        logger.error(f"   sys.path: {sys.path[:3]}")
         return 1
 
     # Copy model
