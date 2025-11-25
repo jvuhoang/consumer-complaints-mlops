@@ -82,7 +82,27 @@ def use_pretrained_model(args):
     logger.info("   Quality: Production-grade (62.6% accuracy)")
     logger.info("   Training: 50K samples, 8 epochs")
 
+    try:
+        from tensorflow.keras.saving import register_keras_serializable
+    except ImportError:
+        try:
+            from keras.saving import register_keras_serializable
+        except ImportError:
+            register_keras_serializable = tf.keras.utils.register_keras_serializable
 
+    @register_keras_serializable(package='Custom', name='custom_standardization')
+    def custom_standardization(input_data):
+        """Text preprocessing function - must match training exactly"""
+        lowercase = tf.strings.lower(input_data)
+        no_html = tf.strings.regex_replace(lowercase, '<[^>]+>', ' ')
+        no_urls = tf.strings.regex_replace(no_html, r'http\S+|www\S+', ' ')
+        no_emails = tf.strings.regex_replace(no_urls, r'\S+@\S+', ' ')
+        no_redacted = tf.strings.regex_replace(no_emails, r'x{2,}', ' ')
+        no_numbers = tf.strings.regex_replace(no_redacted, r'\d+', ' ')
+        no_punct = tf.strings.regex_replace(no_numbers, r'[^a-z\s\-]', ' ')
+        cleaned = tf.strings.regex_replace(no_punct, r'\s+', ' ')
+        return tf.strings.strip(cleaned)
+    
     # Test loading the model to verify it works
     try:
         logger.info("🔄 Attempting to load model with custom objects...")
