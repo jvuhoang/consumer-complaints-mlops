@@ -365,17 +365,8 @@ jobs:
           #model.export("saved_model/")
           model = tf.keras.models.load_model('model.keras', custom_objects={"custom_standardization": custom_standardization})
 
-          # Define the serving function using the model directly
-          @tf.function(input_signature=[tf.TensorSpec(shape=[None], dtype=tf.string)])
-          def serve(text):
-              return model(text)
-
-          # Save with explicit signatures
-          tf.saved_model.save(
-              model,
-              "saved_model/",
-              signatures={'serving_default': serve}
-          )
+          # Standard export - let Keras handle the signature automatically
+          model.save("saved_model/", save_format='tf')
 
 
           # Upload SavedModel back to GCS

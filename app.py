@@ -380,6 +380,9 @@ def predict_complaint():
         )
         
         #response = endpoint.predict(instances=[{"text": complaint_text}])
+        # Ensure it's a plain string
+        if isinstance(complaint_text, list):
+            complaint_text = complaint_text[0]
         response = endpoint.predict(instances=[complaint_text])
         predictions = response.predictions
         
