@@ -365,8 +365,7 @@ jobs:
           #model.export("saved_model/")
           model = tf.keras.models.load_model('model.keras', custom_objects={"custom_standardization": custom_standardization})
 
-          # Standard export - let Keras handle the signature automatically
-          model.save("saved_model/", save_format='tf')
+          model.export("saved_model/")
 
 
           # Upload SavedModel back to GCS
