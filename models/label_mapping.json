@@ -1,0 +1,43 @@
+{
+  "id_to_product": {
+    "0": "Virtual currency",
+    "1": "Vehicle loan or lease",
+    "2": "Student loan",
+    "3": "Prepaid card",
+    "4": "Payday loan, title loan, or personal loan",
+    "5": "Payday loan",
+    "6": "Other financial service",
+    "7": "Mortgage",
+    "8": "Money transfers",
+    "9": "Money transfer, virtual currency, or money service",
+    "10": "Debt collection",
+    "11": "Credit reporting, credit repair services, or other personal consumer reports",
+    "12": "Credit reporting",
+    "13": "Credit card or prepaid card",
+    "14": "Credit card",
+    "15": "Consumer Loan",
+    "16": "Checking or savings account",
+    "17": "Bank account or service"
+  },
+  "product_to_id": {
+    "Virtual currency": 0,
+    "Vehicle loan or lease": 1,
+    "Student loan": 2,
+    "Prepaid card": 3,
+    "Payday loan, title loan, or personal loan": 4,
+    "Payday loan": 5,
+    "Other financial service": 6,
+    "Mortgage": 7,
+    "Money transfers": 8,
+    "Money transfer, virtual currency, or money service": 9,
+    "Debt collection": 10,
+    "Credit reporting, credit repair services, or other personal consumer reports": 11,
+    "Credit reporting": 12,
+    "Credit card or prepaid card": 13,
+    "Credit card": 14,
+    "Consumer Loan": 15,
+    "Checking or savings account": 16,
+    "Bank account or service": 17
+  },
+  "num_classes": 18
+}
