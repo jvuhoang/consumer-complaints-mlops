@@ -90,7 +90,7 @@ def use_pretrained_model(args):
         except ImportError:
             register_keras_serializable = tf.keras.utils.register_keras_serializable
 
-    @register_keras_serializable(package='Custom', name='custom_standardization')
+    @keras.saving.register_keras_serializable(package='Custom', name='custom_standardization')
     def custom_standardization(input_data):
         """Text preprocessing function - must match training exactly"""
         lowercase = tf.strings.lower(input_data)
