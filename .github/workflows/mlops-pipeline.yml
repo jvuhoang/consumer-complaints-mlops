@@ -310,22 +310,22 @@ jobs:
           blob.download_to_filename("model.keras")
 
           # Load with custom function
-          # after defining custom_standardization (in train.py)
+          # Register custom standardization function with proper decorator
           try:
-              import tensorflow as tf
-              register = tf.keras.utils.register_keras_serializable
-          except Exception:
-              # fallback to standalone keras saving API
+              # Try TensorFlow's register first (TF 2.16+)
+              from tensorflow.keras.saving import register_keras_serializable
+          except ImportError:
               try:
-                  from keras.saving import register_keras_serializable as register
-              except Exception:
-                  # no-op
-                  def register(*a, **kw):
-                      def _d(fn): return fn
-                      return _d
+                  # Fall back to standalone Keras 3
+                  from keras.saving import register_keras_serializable
+              except ImportError:
+                  # Fallback for older TF versions
+                  register_keras_serializable = tf.keras.utils.register_keras_serializable
+          
         
-          register(package='Custom')(custom_standardization)
+          @register_keras_serializable(package='Custom', name='custom_standardization')
           def custom_standardization(input_data):
+              """Text preprocessing function - must match training exactly"""
               lowercase = tf.strings.lower(input_data)
               no_html = tf.strings.regex_replace(lowercase, '<[^>]+>', ' ')
               no_urls = tf.strings.regex_replace(no_html, r'http\S+|www\S+', ' ')
