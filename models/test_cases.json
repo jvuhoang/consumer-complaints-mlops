@@ -1,0 +1,42 @@
+[
+  {
+    "complaint": "Debt collector keeps calling me repeatedly and harassing me",
+    "expected_category": "Debt collection",
+    "test_type": "common"
+  },
+  {
+    "complaint": "Received foreclosure notice on my mortgage payment",
+    "expected_category": "Mortgage",
+    "test_type": "common"
+  },
+  {
+    "complaint": "Unauthorized charges on my credit card statement",
+    "expected_category": "Credit card",
+    "test_type": "common"
+  },
+  {
+    "complaint": "Student loan servicer reported wrong information to credit bureau",
+    "expected_category": "Student loan",
+    "test_type": "common"
+  },
+  {
+    "complaint": "Bank charged overdraft fees without authorization",
+    "expected_category": "Checking or savings account",
+    "test_type": "common"
+  },
+  {
+    "complaint": "Credit report has incorrect information and errors",
+    "expected_category": "Credit reporting",
+    "test_type": "common"
+  },
+  {
+    "complaint": "Vehicle loan company repossessed my car incorrectly",
+    "expected_category": "Vehicle loan or lease",
+    "test_type": "edge_case"
+  },
+  {
+    "complaint": "Payday lender charged excessive interest and fees",
+    "expected_category": "Payday loan",
+    "test_type": "edge_case"
+  }
+]
