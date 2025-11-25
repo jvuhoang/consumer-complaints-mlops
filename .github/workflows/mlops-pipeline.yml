@@ -509,9 +509,9 @@ jobs:
           
           # Test prediction
           test_instances = [
-              {"text": "I have a problem with my credit card billing"}
+              ["I have a problem with my credit card billing"]  # Wrap text in a list
           ]
-          
+
           try:
               predictions = endpoint.predict(instances=test_instances)
               print("✅ Endpoint test successful")
