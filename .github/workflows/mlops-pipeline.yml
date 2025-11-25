@@ -309,7 +309,21 @@ jobs:
           blob.download_to_filename("model.keras")
 
           # Load with custom function
-          @tf.keras.utils.register_keras_serializable(package='Custom', name='custom_standardization')
+          # after defining custom_standardization (in train.py)
+          try:
+              import tensorflow as tf
+              register = tf.keras.utils.register_keras_serializable
+          except Exception:
+              # fallback to standalone keras saving API
+              try:
+                  from keras.saving import register_keras_serializable as register
+              except Exception:
+                  # no-op
+                  def register(*a, **kw):
+                      def _d(fn): return fn
+                      return _d
+
+          register(package='Custom')(custom_standardization)
           def custom_standardization(input_data):
               lowercase = tf.strings.lower(input_data)
               no_html = tf.strings.regex_replace(lowercase, '<[^>]+>', ' ')
@@ -322,7 +336,7 @@ jobs:
               return tf.strings.strip(cleaned)
 
           # Load the .keras model
-          model = tf.keras.models.load_model('complete_complaint_classifier_tf.keras')
+          model = tf.keras.models.load_model('complete_complaint_classifier_tf.keras', custom_objects={"custom_standardization": custom_standardization})
           model.export("saved_model/")
 
 
