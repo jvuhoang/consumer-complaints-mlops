@@ -80,10 +80,14 @@ def get_predictions(project_id, region, endpoint_id, instances):
         # Since batch_size is small (100) in args, we might send it all at once, 
         # but robust code splits it just in case.
         predictions = []
-        chunk_size = 50  # Safe chunk size for HTTP requests
+        chunk_size = 1  # Process one by one if batching fails  
         
         for i in range(0, len(instances), chunk_size):
-            batch = instances[i : i + chunk_size]
+            # OLD: batch = instances[i : i + chunk_size]
+            # NEW: Wrap each string in a list to make it shape (N, 1)
+            raw_batch = instances[i : i + chunk_size]
+            batch = [[text] for text in raw_batch] 
+            
             response = endpoint.predict(instances=batch)
             predictions.extend(response.predictions)
             
