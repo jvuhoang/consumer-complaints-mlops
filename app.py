@@ -26,24 +26,16 @@ ENDPOINT_ID = os.environ.get("VERTEX_ENDPOINT_ID") or get_latest_endpoint()
 
 # Category mapping
 CATEGORY_MAPPING = {
-    0: "Bank account or service",
-    1: "Checking or savings account",
-    2: "Student loan",
-    3: "Credit card or prepaid card",
-    4: "Consumer Loan",
-    5: "Credit reporting",
-    6: "Credit reporting, credit repair services, or other personal consumer reports",
-    7: "Mortgage",
-    8: "Money transfer, virtual currency, or money service",
-    9: "Money transfers",
-    10: "Debt collection",
-    11: "Other financial service",
-    12: "Payday loan",
-    13: "Payday loan, title loan, or personal loan",
-    14: "Credit card",
-    15: "Vehicle loan or lease",
-    16: "Prepaid card",
-    17: "Virtual currency"
+    0: "Student loan",
+    1: "Personal loan",
+    2: "Other",
+    3: "Mortgage",
+    4: "Money transfer",
+    5: "Debt collection",
+    6: "Credit reporting",
+    7: "Credit card",
+    8: "Consumer Loan",
+    9: "Bank account or service"
 }
 
 # Initialize Vertex AI
@@ -376,7 +368,7 @@ def predict_complaint():
         
         # Call Vertex AI Endpoint
         endpoint = aiplatform.Endpoint(
-            endpoint_name=f"projects/{PROJECT_ID}/locations/{LOCATION}/endpoints/{ENDPOINT_ID}"
+            endpoint_resource_name=f"projects/{PROJECT_ID}/locations/{LOCATION}/endpoints/{ENDPOINT_ID}"
         )
         
         #response = endpoint.predict(instances=[{"text": complaint_text}])
