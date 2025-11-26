@@ -381,9 +381,18 @@ def predict_complaint():
         
         #response = endpoint.predict(instances=[{"text": complaint_text}])
         # Ensure it's a plain string
-        response = endpoint.predict(instances=[complaint_text])
-        predictions = response.predictions
+        #response = endpoint.predict(instances=[complaint_text])
+        #predictions = response.predictions
         
+        # Try different instance formats based on your model's expectations
+        # Option 1: Plain string in array (current approach)
+        # CRITICAL FIX: Wrap the string in a numpy array
+        import numpy as np
+        instances = [np.array([complaint_text])]
+        
+        response = endpoint.predict(instances=instances)
+        predictions = response.predictions
+
         # Process prediction
         pred = predictions[0]
         if isinstance(pred, list):
