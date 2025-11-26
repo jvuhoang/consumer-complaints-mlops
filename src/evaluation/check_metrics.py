@@ -145,7 +145,7 @@ def main():
     )
     
     # 2. Get Ground Truth
-    y_true = df[label_col_name].tolist()s
+    y_true = df[label_col_name].tolist()
     
     # 3. Get Predictions from Vertex AI
     y_pred = get_predictions(args.endpoint_id, prediction_instances)
