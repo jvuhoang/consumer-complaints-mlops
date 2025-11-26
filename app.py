@@ -386,11 +386,8 @@ def predict_complaint():
         
         # Try different instance formats based on your model's expectations
         # Option 1: Plain string in array (current approach)
-        # CRITICAL FIX: Wrap the string in a numpy array
-        import numpy as np
-        instances = [np.array([complaint_text])]
-        
-        response = endpoint.predict(instances=instances)
+        # Use double-nested format for the input
+        response = endpoint.predict(instances=[[complaint_text]])
         predictions = response.predictions
 
         # Process prediction
