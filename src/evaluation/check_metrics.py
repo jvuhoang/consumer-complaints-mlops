@@ -1,18 +1,12 @@
 import argparse
 import sys
-import numpy as np
-import pandas as pd
 import logging
+import pandas as pd
+import numpy as np
 from datasets import load_dataset
 from sklearn.preprocessing import MultiLabelBinarizer
 from sklearn.metrics import f1_score, precision_score, recall_score, hamming_loss
-# Import the necessary Google Cloud SDK module
 from google.cloud import aiplatform
-
-# --- Configuration ---
-PROJECT_ID =  "${{ secrets.GCP_PROJECT_ID }}"
-REGION =  "${{ secrets.REGION }}"
-# ---------------------
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -20,11 +14,20 @@ logger = logging.getLogger(__name__)
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Evaluate Multi-Label Model Metrics from Vertex AI")
-    parser.add_argument("--endpoint-id", type=str, required=True, help="Vertex AI Endpoint ID (e.g., 1234567890)")
+    
+    # REQUIRED: Vertex AI Connection Details
+    parser.add_argument("--project-id", type=str, required=True, help="Google Cloud Project ID")
+    parser.add_argument("--region", type=str, default="us-central1", help="Google Cloud region (e.g., us-central1)")
+    parser.add_argument("--endpoint-id", type=str, required=True, help="Vertex AI Endpoint ID")
+    
+    # Dataset Config
     parser.add_argument("--dataset", type=str, default="milesbutler/consumer_complaints", help="Hugging Face dataset path")
-    parser.add_argument("--split", type=str, default="test", help="Dataset split to use (e.g., test)")
+    parser.add_argument("--split", type=str, default="test", help="Dataset split to use")
+    parser.add_argument("--batch-size", type=int, default=100, help="Number of samples to predict")
+    
+    # Alerting
     parser.add_argument("--alert-threshold", type=float, default=0.70, help="F1-Micro threshold for alerting")
-    parser.add_argument("--batch-size", type=int, default=100, help="Number of samples to pull from the dataset and send for prediction.")
+    
     return parser.parse_args()
 
 def load_data(dataset_name, split, batch_size):
@@ -40,9 +43,11 @@ def load_data(dataset_name, split, batch_size):
         logger.error(f"Split '{split}' not found. Exiting.")
         sys.exit(1)
 
+    # Take only the first N rows for the spot check
     data = dataset[split].select(range(batch_size))
     df = data.to_pandas()
     
+    # Dynamic column finding
     label_col = next((col for col in ['Product', 'product', 'label', 'labels'] if col in df.columns), None)
     text_col = next((col for col in ['Consumer Complaint', 'text', 'narrative', 'consumer_complaint_narrative'] if col in df.columns), None)
     
@@ -52,105 +57,90 @@ def load_data(dataset_name, split, batch_size):
         
     logger.info(f"✅ Data loaded. Using text column: '{text_col}' and label column: '{label_col}'")
     
-    # Prepare true labels (y_true)
+    # Prepare true labels (y_true) - Wrap single strings in list for MultiLabelBinarizer
     df['target_list'] = df[label_col].apply(lambda x: [x] if isinstance(x, str) else x)
     
-    # Prepare input instances for Vertex AI (assuming the model expects text strings)
+    # Prepare input instances for Vertex AI
     instances = df[text_col].tolist()
     
     return df, 'target_list', instances
 
-def get_predictions(endpoint_id, instances):
+def get_predictions(project_id, region, endpoint_id, instances):
     """Queries the Vertex AI Endpoint for predictions."""
     
-    aiplatform.init(project=PROJECT_ID, location=REGION)
+    # Initialize connection using the passed arguments
+    aiplatform.init(project=project_id, location=region)
     
     logger.info(f"⚡️ Querying Vertex AI Endpoint: {endpoint_id} with {len(instances)} instances...")
     
-    # Fetch the Endpoint object
-    endpoint = aiplatform.Endpoint(endpoint_name=endpoint_id)
-
-    # Convert the list of text instances into the format expected by the Vertex SDK
-    # Each instance must be a dictionary if you have multiple features, 
-    # but for simple text classification, it's often a list of dictionaries like:
-    # [{"text": "complaint text 1"}, {"text": "complaint text 2"}]
-    # NOTE: You may need to customize this input format based on your model's requirement!
-    prediction_instances = [{"text": text} for text in instances]
-
     try:
-        # Call the prediction service
-        response = endpoint.predict(instances=prediction_instances)
+        endpoint = aiplatform.Endpoint(endpoint_name=endpoint_id)
         
-        # The response structure depends entirely on your model's output format.
-        # We assume the model returns a list of lists, where each inner list contains
-        # the predicted class labels (e.g., [['Credit Card', 'Billing'], ['Mortgage']]).
-        # If your model returns logits/probabilities, you'll need a post-processing step here.
+        # Vertex AI limits payload size, so we batch if necessary. 
+        # Since batch_size is small (100) in args, we might send it all at once, 
+        # but robust code splits it just in case.
+        predictions = []
+        chunk_size = 50  # Safe chunk size for HTTP requests
         
-        # This extracts the 'predictions' field, which is usually the custom output.
-        y_pred = response.predictions 
-        
-        logger.info(f"✅ Successfully received {len(y_pred)} predictions.")
-        return y_pred
-        
+        for i in range(0, len(instances), chunk_size):
+            batch = instances[i : i + chunk_size]
+            response = endpoint.predict(instances=batch)
+            predictions.extend(response.predictions)
+            
+        return predictions
+
     except Exception as e:
-        logger.error(f"❌ Error during prediction request to Vertex AI: {e}")
-        # Fail the monitoring job if the prediction service is unreachable or errors
+        logger.error(f"Vertex AI Prediction failed: {e}")
         sys.exit(1)
 
 def calculate_metrics(y_true, y_pred, threshold):
-    """Calculates and reports multi-label metrics."""
-    # (Remains the same as before, using MultiLabelBinarizer and calculating metrics)
+    """Calculates metrics and checks against threshold."""
+    
     mlb = MultiLabelBinarizer()
     
+    # Fit on Ground Truth
     y_true_bin = mlb.fit_transform(y_true)
     
+    # Transform Predictions
+    # Note: If model returns labels not seen in y_true, we handle it by refitting
     try:
         y_pred_bin = mlb.transform(y_pred)
     except ValueError:
-        # Re-fit for robustness in production monitoring
-        all_labels = list(y_true) + list(y_pred)
+        logger.warning("⚠️ New labels found in predictions not present in test batch. Refitting Binarizer.")
         mlb = MultiLabelBinarizer()
+        all_labels = list(y_true) + list(y_pred)
         mlb.fit(all_labels)
         y_true_bin = mlb.transform(y_true)
         y_pred_bin = mlb.transform(y_pred)
 
-    logger.info("📊 Calculating metrics...")
+    f1 = f1_score(y_true_bin, y_pred_bin, average='micro')
     
-    f1_micro = f1_score(y_true_bin, y_pred_bin, average='micro')
-    precision = precision_score(y_true_bin, y_pred_bin, average='micro')
-    hamming = hamming_loss(y_true_bin, y_pred_bin)
-
     print("\n" + "="*40)
-    print("🤖 MODEL PERFORMANCE REPORT (Vertex AI)")
-    print("="*40)
-    print(f"Dataset Size:   {len(y_true)}")
-    print("-" * 40)
-    print(f"✅ F1 Score (Micro):    {f1_micro:.4f}")
-    print(f"   Precision (Micro):   {precision:.4f}")
-    print(f"📉 Hamming Loss:        {hamming:.4f} (Lower is better)")
+    print(f"✅ F1 Score (Micro):    {f1:.4f}")
     print("="*40 + "\n")
 
-    if f1_micro < threshold:
-        logger.error(f"❌ Alert! F1-Micro ({f1_micro:.4f}) is below threshold ({threshold}).")
-        sys.exit(1) 
+    if f1 < threshold:
+        logger.error(f"❌ Alert! F1-Micro ({f1:.4f}) is below threshold ({threshold}).")
+        sys.exit(1)
     else:
-        logger.info(f"✅ Performance is healthy (Above {threshold}).")
+        logger.info(f"✅ Performance is healthy.")
 
 def main():
     args = parse_args()
     
-    # 1. Load Data and prepare instances for prediction
-    df, label_col_name, prediction_instances = load_data(
-        args.dataset, args.split, args.batch_size
-    )
+    # 1. Load Data
+    df, label_col, instances = load_data(args.dataset, args.split, args.batch_size)
+    y_true = df[label_col].tolist()
     
-    # 2. Get Ground Truth
-    y_true = df[label_col_name].tolist()
+    # 2. Get Predictions
+    y_pred = get_predictions(args.project_id, args.region, args.endpoint_id, instances)
     
-    # 3. Get Predictions from Vertex AI
-    y_pred = get_predictions(args.endpoint_id, prediction_instances)
-    
-    # 4. Run Checks
+    # 3. Validation
+    if len(y_true) != len(y_pred):
+        logger.error(f"Mismatch: {len(y_true)} true labels vs {len(y_pred)} predictions.")
+        sys.exit(1)
+        
+    # 4. Calc Metrics
     calculate_metrics(y_true, y_pred, args.alert_threshold)
 
 if __name__ == "__main__":
