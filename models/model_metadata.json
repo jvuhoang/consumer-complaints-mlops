@@ -1,39 +1,39 @@
 {
-  "model_name": "bilstm_cnn_advanced",
+  "model_name": "bilstm_baseline",
   "version": "1.0.0",
-  "training_date": "2025-11-25T20:13:49.364058",
+  "training_date": "2025-11-26T02:00:06.232461",
   "framework": "TensorFlow",
   "keras_version": "2.16.2",
-  "best_config": "bilstm_cnn_advanced",
+  "best_config": "bilstm_baseline",
   "performance": {
-    "test_accuracy": 0.6624000072479248,
-    "test_top3_accuracy": 0.9107999801635742,
-    "validation_accuracy": 0.6750666499137878,
-    "test_loss": 1.052065134048462
+    "test_accuracy": 0.7506666779518127,
+    "test_top3_accuracy": 0.9057777523994446,
+    "validation_accuracy": 0.7471110820770264,
+    "test_loss": 0.9048992991447449
   },
   "training_info": {
-    "epochs_completed": 8,
-    "training_time_minutes": 88.54178653333334,
+    "epochs_completed": 6,
+    "training_time_minutes": 12.4430137,
     "batch_size": 128,
     "learning_rate": 0.001
   },
   "model_architecture": {
-    "type": "BiLSTM+CNN",
+    "type": "BiLSTM",
     "lstm_units": 128,
     "embedding_dim": 128,
     "use_bidirectional": true,
-    "use_cnn": true,
+    "use_cnn": false,
     "dense_units": [
-      128,
-      64
+      64,
+      32
     ]
   },
   "data_info": {
-    "num_classes": 18,
-    "sample_size": 50000,
-    "train_size": 35000,
-    "val_size": 7500,
-    "test_size": 7500
+    "num_classes": 10,
+    "sample_size": 15000,
+    "train_size": 10500,
+    "val_size": 2250,
+    "test_size": 2250
   },
   "input_format": "raw_text_string",
   "preprocessing": "built_into_model",
