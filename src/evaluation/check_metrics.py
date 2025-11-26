@@ -232,12 +232,21 @@ def parse_predictions(raw_predictions, model_classes, prediction_threshold=0.3, 
 def calculate_metrics(y_true, y_pred_raw, model_classes, class_mapping, threshold, prediction_threshold=0.3, top_k=None):
     """Calculates metrics and checks against threshold."""
     
-    # First, fit MLB on ground truth to get all possible classes
-    mlb = MultiLabelBinarizer()
-    y_true_bin = mlb.fit_transform(y_true)
+    logger.info(f"📊 Original ground truth has {len(set([item for sublist in y_true for item in sublist]))} unique classes")
     
-    logger.info(f"📊 Found {len(mlb.classes_)} unique classes in ground truth")
-    logger.info(f"🏷️  Ground truth classes: {list(mlb.classes_[:5])}..." if len(mlb.classes_) > 5 else f"🏷️  Classes: {list(mlb.classes_)}")
+    # Apply class mapping to ground truth (test data) to standardize to model classes
+    if class_mapping:
+        logger.info(f"🔄 Applying class name mapping to ground truth...")
+        y_true_mapped = [apply_class_mapping(labels, class_mapping) for labels in y_true]
+    else:
+        y_true_mapped = y_true
+    
+    # Now fit MLB on the MAPPED ground truth
+    mlb = MultiLabelBinarizer()
+    y_true_bin = mlb.fit_transform(y_true_mapped)
+    
+    logger.info(f"🏷️  After mapping, ground truth has {len(mlb.classes_)} unique classes (should match model)")
+    logger.info(f"    Classes: {list(mlb.classes_[:10])}..." if len(mlb.classes_) > 10 else f"    Classes: {list(mlb.classes_)}")
     
     # Inspect first raw prediction to determine format
     logger.info(f"🔍 Raw prediction format (first sample): {type(y_pred_raw[0])}")
@@ -251,30 +260,21 @@ def calculate_metrics(y_true, y_pred_raw, model_classes, class_mapping, threshol
         logger.info(f"🎓 Model trained on {len(model_classes)} classes:")
         logger.info(f"   {model_classes[:5]}..." if len(model_classes) > 5 else f"   {model_classes}")
     
-    # Parse predictions from probabilities to labels
+    # Parse predictions from probabilities to labels (these are already in model format)
     logger.info(f"🎯 Converting predictions using threshold={prediction_threshold}, top_k={top_k}")
-    y_pred_raw_labels = parse_predictions(y_pred_raw, model_classes, prediction_threshold, top_k)
-    
-    # Apply class mapping if provided
-    if class_mapping:
-        logger.info(f"🔄 Applying class name mapping...")
-        y_pred = [apply_class_mapping(labels, class_mapping) for labels in y_pred_raw_labels]
-    else:
-        y_pred = y_pred_raw_labels
+    y_pred = parse_predictions(y_pred_raw, model_classes, prediction_threshold, top_k)
     
     # Log some examples
     logger.info("\n📋 Sample Predictions (first 5):")
     for i in range(min(5, len(y_true))):
         logger.info(f"   Sample {i+1}:")
-        logger.info(f"     Ground Truth: {y_true[i]}")
-        if class_mapping and y_pred_raw_labels[i] != y_pred[i]:
-            logger.info(f"     Model Output: {y_pred_raw_labels[i]}")
-            logger.info(f"     After Mapping: {y_pred[i]}")
-        else:
-            logger.info(f"     Prediction: {y_pred[i]}")
-        logger.info(f"     Match: {'✅' if set(y_true[i]) == set(y_pred[i]) else '❌'}")
+        logger.info(f"     Ground Truth (Original): {y_true[i]}")
+        if class_mapping:
+            logger.info(f"     Ground Truth (Mapped):   {y_true_mapped[i]}")
+        logger.info(f"     Prediction:               {y_pred[i]}")
+        logger.info(f"     Match: {'✅' if set(y_true_mapped[i]) == set(y_pred[i]) else '❌'}")
     
-    # Transform predictions using the same MLB
+    # Transform predictions using the same MLB (fitted on mapped ground truth)
     try:
         y_pred_bin = mlb.transform(y_pred)
     except ValueError as e:
@@ -288,12 +288,12 @@ def calculate_metrics(y_true, y_pred_raw, model_classes, class_mapping, threshol
         missing_labels = all_pred_labels - set(mlb.classes_)
         if missing_labels:
             logger.warning(f"⚠️ Labels in predictions but not in ground truth: {missing_labels}")
-            logger.warning(f"⚠️ This will hurt your F1 score. Check your class mapping!")
+            logger.warning(f"⚠️ This will hurt your F1 score. Check your model classes or mapping!")
         
         mlb = MultiLabelBinarizer()
-        all_labels = list(y_true) + list(y_pred)
+        all_labels = list(y_true_mapped) + list(y_pred)
         mlb.fit(all_labels)
-        y_true_bin = mlb.transform(y_true)
+        y_true_bin = mlb.transform(y_true_mapped)
         y_pred_bin = mlb.transform(y_pred)
 
     # Calculate metrics
@@ -304,7 +304,7 @@ def calculate_metrics(y_true, y_pred_raw, model_classes, class_mapping, threshol
     hamming = hamming_loss(y_true_bin, y_pred_bin)
     
     # Calculate accuracy (exact match ratio)
-    exact_matches = sum(1 for true, pred in zip(y_true, y_pred) if set(true) == set(pred))
+    exact_matches = sum(1 for true, pred in zip(y_true_mapped, y_pred) if set(true) == set(pred))
     accuracy = exact_matches / len(y_true)
     
     print("\n" + "="*50)
