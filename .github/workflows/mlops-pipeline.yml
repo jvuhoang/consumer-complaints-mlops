@@ -444,7 +444,7 @@ jobs:
           
           # Save outputs
           with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
-              f.write(f"endpoint_id={endpoint.name}\n")
+              f.write(f"endpoint_id={endpoint.resource_name}\n")
               f.write(f"endpoint_url=https://{os.environ['REGION']}-aiplatform.googleapis.com/v1/{endpoint.resource_name}:predict\n")
           EOF
       
