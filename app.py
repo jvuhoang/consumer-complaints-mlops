@@ -5,23 +5,11 @@ import json
 
 app = Flask(__name__)
 
+
 # --- Vertex AI Configuration ---
 PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "project-37461c1b-635d-4cf2-af5")
-ENDPOINT_ID = os.environ.get("VERTEX_ENDPOINT_ID", "4351135847504936960")
 LOCATION = os.environ.get("GCP_LOCATION", "us-central1")
-
-def get_latest_endpoint():
-    """Get the most recently created endpoint"""
-    endpoints = aiplatform.Endpoint.list(
-        filter='display_name="consumer-complaints-classifier"',  # Optional filter
-        order_by="create_time desc"
-    )
-    if endpoints:
-        return endpoints[0].name.split('/')[-1]
-    return None
-
-# Update in your code
-ENDPOINT_ID = os.environ.get("VERTEX_ENDPOINT_ID") or get_latest_endpoint()
+ENDPOINT_ID = os.environ.get("VERTEX_ENDPOINT_ID","4351135847504936960")
 
 
 # Category mapping
@@ -367,10 +355,19 @@ def predict_complaint():
             return jsonify({"error": "Complaint text must be a non-empty string"}), 400
         
         # Call Vertex AI Endpoint
-        endpoint = aiplatform.Endpoint(
-            f"projects/{PROJECT_ID}/locations/{LOCATION}/endpoints/{ENDPOINT_ID}"
-        )
+        #endpoint = aiplatform.Endpoint(
+        #    f"projects/{PROJECT_ID}/locations/{LOCATION}/endpoints/{ENDPOINT_ID}"
+        #)
+        # DEBUG: Print what we're using
+        endpoint_resource_name = f"projects/{PROJECT_ID}/locations/{LOCATION}/endpoints/{ENDPOINT_ID}"
+        print(f"DEBUG - PROJECT_ID: {PROJECT_ID}")
+        print(f"DEBUG - LOCATION: {LOCATION}")
+        print(f"DEBUG - ENDPOINT_ID: {ENDPOINT_ID}")
+        print(f"DEBUG - Full endpoint resource name: {endpoint_resource_name}")
         
+        # Call Vertex AI Endpoint
+        endpoint = aiplatform.Endpoint(endpoint_resource_name)
+
         #response = endpoint.predict(instances=[{"text": complaint_text}])
         # Ensure it's a plain string
         #response = endpoint.predict(instances=[complaint_text])
