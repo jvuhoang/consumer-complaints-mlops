@@ -25,19 +25,17 @@ def parse_args():
     parser.add_argument("--split", type=str, default="test", help="Dataset split to use")
     parser.add_argument("--batch-size", type=int, default=100, help="Number of samples to predict")
     
-    # Model Configuration - Supports multiple formats
-    parser.add_argument("--model-config", type=str, default=None,
-                        help="Path to model config JSON with id_to_product mapping (preferred)")
+    # Model Configuration
     parser.add_argument("--model-classes", type=str, default=None,
-                        help="Comma-separated list of class names in model output order")
+                        help="Comma-separated list of class names in model output order (e.g., 'class1,class2,class3')")
     parser.add_argument("--model-classes-file", type=str, default=None,
                         help="Path to text file with class names (one per line)")
     parser.add_argument("--class-mapping-file", type=str, default=None,
-                        help="JSON file mapping test labels to model classes")
+                        help="JSON file mapping model classes to ground truth classes (e.g., {'Credit card': 'Credit card or prepaid card'})")
     
     # Prediction thresholding
     parser.add_argument("--prediction-threshold", type=float, default=0.3, 
-                        help="Threshold for converting probabilities to labels (default: 0.3)")
+                        help="Threshold for converting probabilities to labels (default: 0.3, lowered from 0.5)")
     parser.add_argument("--top-k", type=int, default=None, 
                         help="If set, select top-k labels per sample instead of using threshold")
     
@@ -110,39 +108,16 @@ def get_predictions(project_id, region, endpoint_id, instances):
         logger.error(f"Vertex AI Prediction failed: {e}")
         sys.exit(1)
 
-def load_model_classes_from_config(config_path):
-    """Load model classes from a JSON config file with id_to_product mapping."""
-    import json
-    with open(config_path, 'r') as f:
-        config = json.load(f)
-    
-    if 'id_to_product' in config:
-        # Sort by ID to ensure correct order
-        id_to_product = config['id_to_product']
-        sorted_ids = sorted(id_to_product.keys(), key=lambda x: int(x))
-        classes = [id_to_product[id_str] for id_str in sorted_ids]
-        logger.info(f"📋 Loaded {len(classes)} model classes from config JSON: {config_path}")
-        logger.info(f"   Classes: {classes}")
+def load_model_classes(model_classes_arg, model_classes_file):
+    """Load the model's class names from argument or file."""
+    if model_classes_arg:
+        classes = [c.strip() for c in model_classes_arg.split(',')]
+        logger.info(f"📋 Loaded {len(classes)} model classes from argument")
         return classes
-    else:
-        logger.error(f"Config file {config_path} does not contain 'id_to_product' key")
-        sys.exit(1)
-
-def load_model_classes(model_config, model_classes_arg, model_classes_file):
-    """Load the model's class names from various sources."""
-    # Priority: 1. Config JSON, 2. Classes file, 3. Argument
-    if model_config:
-        return load_model_classes_from_config(model_config)
     elif model_classes_file:
         with open(model_classes_file, 'r') as f:
             classes = [line.strip() for line in f if line.strip()]
         logger.info(f"📋 Loaded {len(classes)} model classes from file: {model_classes_file}")
-        logger.info(f"   Classes: {classes}")
-        return classes
-    elif model_classes_arg:
-        classes = [c.strip() for c in model_classes_arg.split(',')]
-        logger.info(f"📋 Loaded {len(classes)} model classes from argument")
-        logger.info(f"   Classes: {classes}")
         return classes
     else:
         return None
@@ -151,23 +126,10 @@ def load_class_mapping(class_mapping_file):
     """Load class name mapping from JSON file."""
     if class_mapping_file:
         import json
-        try:
-            with open(class_mapping_file, 'r') as f:
-                mapping = json.load(f)
-            logger.info(f"🔄 Loaded class mapping with {len(mapping)} entries from: {class_mapping_file}")
-            # Show sample mappings
-            sample_items = list(mapping.items())[:3]
-            for key, val in sample_items:
-                logger.info(f"   '{key}' → '{val}'")
-            if len(mapping) > 3:
-                logger.info(f"   ... and {len(mapping) - 3} more mappings")
-            return mapping
-        except FileNotFoundError:
-            logger.error(f"Class mapping file not found: {class_mapping_file}")
-            sys.exit(1)
-        except json.JSONDecodeError as e:
-            logger.error(f"Invalid JSON in class mapping file: {e}")
-            sys.exit(1)
+        with open(class_mapping_file, 'r') as f:
+            mapping = json.load(f)
+        logger.info(f"🔄 Loaded class mapping with {len(mapping)} entries")
+        return mapping
     return None
 
 def apply_class_mapping(labels, class_mapping):
@@ -192,16 +154,9 @@ def infer_model_classes(raw_predictions, dataset_name):
     if 'consumer_complaints' in dataset_name.lower():
         # These are the most common 10 classes in the consumer complaints dataset
         common_classes = [
-            'Credit reporting, credit repair services, or other personal consumer reports',
-            'Debt collection',
-            'Credit card or prepaid card',
-            'Checking or savings account',
-            'Mortgage',
-            'Credit card',
-            'Bank account or service',
-            'Student loan',
-            'Vehicle loan or lease',
-            'Money transfer, virtual currency, or money service'
+        'Student loan', 'Personal loan', 'Other', 'Mortgage',
+        'Money transfer', 'Debt collection', 'Credit reporting',
+        'Credit card', 'Consumer Loan', 'Bank account or service'
         ]
         logger.warning(f"⚠️ Using inferred top-10 classes for consumer_complaints dataset")
         logger.warning(f"⚠️ For accurate results, provide --model-classes or --model-classes-file")
@@ -372,49 +327,27 @@ def calculate_metrics(y_true, y_pred_raw, model_classes, class_mapping, threshol
 def main():
     args = parse_args()
     
-    # 1. Load model classes (supports multiple formats)
-    logger.info("=" * 60)
-    logger.info("🚀 Starting Model Evaluation")
-    logger.info("=" * 60)
-    
-    model_classes = load_model_classes(args.model_config, args.model_classes, args.model_classes_file)
-    
-    if model_classes is None:
-        logger.warning("⚠️  No model classes provided via --model-config, --model-classes-file, or --model-classes")
-        logger.warning("⚠️  Will attempt to infer classes, but results may be inaccurate")
-    
-    # 2. Load class mapping
+    # 1. Load model classes and mapping
+    model_classes = load_model_classes(args.model_classes, args.model_classes_file)
     class_mapping = load_class_mapping(args.class_mapping_file)
     
-    if class_mapping is None:
-        logger.warning("⚠️  No class mapping provided via --class-mapping-file")
-        logger.warning("⚠️  Assuming test labels match model classes exactly")
-    
-    # 3. Load Data
+    # 2. Load Data
     df, label_col, instances = load_data(args.dataset, args.split, args.batch_size)
     y_true = df[label_col].tolist()
     
-    # 4. Get Predictions (raw probabilities/scores)
+    # 3. Get Predictions (raw probabilities/scores)
     y_pred_raw = get_predictions(args.project_id, args.region, args.endpoint_id, instances)
     
-    # 5. Infer model classes if not provided
+    # 4. Infer model classes if not provided
     if model_classes is None:
-        logger.warning("⚠️ Attempting to infer model classes from dataset...")
         model_classes = infer_model_classes(y_pred_raw, args.dataset)
-        if model_classes is None:
-            logger.error("❌ Could not infer model classes. Please provide --model-config or --model-classes-file")
-            sys.exit(1)
     
-    # 6. Validation
+    # 5. Validation
     if len(y_true) != len(y_pred_raw):
         logger.error(f"Mismatch: {len(y_true)} true labels vs {len(y_pred_raw)} predictions.")
         sys.exit(1)
     
-    logger.info("=" * 60)
-    logger.info("📊 Starting Metric Calculation")
-    logger.info("=" * 60)
-    
-    # 7. Calculate Metrics (with prediction parsing and mapping)
+    # 6. Calculate Metrics (with prediction parsing)
     calculate_metrics(
         y_true, 
         y_pred_raw,
