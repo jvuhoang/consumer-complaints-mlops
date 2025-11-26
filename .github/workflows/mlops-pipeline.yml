@@ -334,7 +334,7 @@ jobs:
           vertex_model = aiplatform.Model.upload(
               display_name="${{ env.MODEL_DISPLAY_NAME }}",
               artifact_uri=f"gs://${{ secrets.GCS_BUCKET }}/models/production/${{ needs.model-training.outputs.model_version }}/",
-              serving_container_image_uri="us-docker.pkg.dev/vertex-ai/prediction/tf2-cpu.2-11:latest",
+              serving_container_image_uri="us-docker.pkg.dev/vertex-ai/prediction/tf2-cpu.2-16:latest",
               description=f"Consumer complaints classifier - Version ${{ needs.model-training.outputs.model_version }}",
               labels={
                   "version": model_version.replace("_", "-").replace(".", "-")[:63],
