@@ -368,7 +368,7 @@ def predict_complaint():
         
         # Call Vertex AI Endpoint
         endpoint = aiplatform.Endpoint(
-            endpoint_resource_name=f"projects/{PROJECT_ID}/locations/{LOCATION}/endpoints/{ENDPOINT_ID}"
+            f"projects/{PROJECT_ID}/locations/{LOCATION}/endpoints/{ENDPOINT_ID}"
         )
         
         #response = endpoint.predict(instances=[{"text": complaint_text}])
