@@ -154,16 +154,9 @@ def infer_model_classes(raw_predictions, dataset_name):
     if 'consumer_complaints' in dataset_name.lower():
         # These are the most common 10 classes in the consumer complaints dataset
         common_classes = [
-            'Credit reporting, credit repair services, or other personal consumer reports',
-            'Debt collection',
-            'Credit card or prepaid card',
-            'Checking or savings account',
-            'Mortgage',
-            'Credit card',
-            'Bank account or service',
-            'Student loan',
-            'Vehicle loan or lease',
-            'Money transfer, virtual currency, or money service'
+        'Student loan', 'Personal loan', 'Other', 'Mortgage',
+        'Money transfer', 'Debt collection', 'Credit reporting',
+        'Credit card', 'Consumer Loan', 'Bank account or service'
         ]
         logger.warning(f"⚠️ Using inferred top-10 classes for consumer_complaints dataset")
         logger.warning(f"⚠️ For accurate results, provide --model-classes or --model-classes-file")
