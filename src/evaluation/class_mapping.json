@@ -1,12 +1,20 @@
 {
-  "Credit reporting": "Credit reporting, credit repair services, or other personal consumer reports",
-  "Bank account or service": "Checking or savings account",
-  "Mortgage": "Mortgage",
-  "Credit card": "Credit card or prepaid card",
   "Debt collection": "Debt collection",
+  "Credit reporting, credit repair services, or other personal consumer reports": "Credit reporting",
+  "Credit reporting": "Credit reporting",
+  "Mortgage": "Mortgage",
+  "Credit card": "Credit card",
+  "Credit card or prepaid card": "Credit card",
+  "Prepaid card": "Credit card",
   "Student loan": "Student loan",
-  "Vehicle loan or lease": "Vehicle loan or lease",
-  "Money transfer, virtual currency, or money service": "Money transfers",
-  "Payday loan, title loan, or personal loan": "Consumer Loan",
-  "Prepaid card": "Credit card or prepaid card"
+  "Bank account or service": "Bank account or service",
+  "Checking or savings account": "Bank account or service",
+  "Consumer Loan": "Consumer Loan",
+  "Payday loan, title loan, or personal loan": "Personal loan",
+  "Payday loan": "Personal loan",
+  "Money transfer, virtual currency, or money service": "Money transfer",
+  "Money transfers": "Money transfer",
+  "Virtual currency": "Money transfer",
+  "Vehicle loan or lease": "Consumer Loan",
+  "Other financial service": "Other"
 }
