@@ -30,10 +30,12 @@ def parse_args():
                         help="Comma-separated list of class names in model output order (e.g., 'class1,class2,class3')")
     parser.add_argument("--model-classes-file", type=str, default=None,
                         help="Path to text file with class names (one per line)")
+    parser.add_argument("--class-mapping-file", type=str, default=None,
+                        help="JSON file mapping model classes to ground truth classes (e.g., {'Credit card': 'Credit card or prepaid card'})")
     
     # Prediction thresholding
-    parser.add_argument("--prediction-threshold", type=float, default=0.5, 
-                        help="Threshold for converting probabilities to labels (default: 0.5)")
+    parser.add_argument("--prediction-threshold", type=float, default=0.3, 
+                        help="Threshold for converting probabilities to labels (default: 0.3, lowered from 0.5)")
     parser.add_argument("--top-k", type=int, default=None, 
                         help="If set, select top-k labels per sample instead of using threshold")
     
@@ -120,6 +122,22 @@ def load_model_classes(model_classes_arg, model_classes_file):
     else:
         return None
 
+def load_class_mapping(class_mapping_file):
+    """Load class name mapping from JSON file."""
+    if class_mapping_file:
+        import json
+        with open(class_mapping_file, 'r') as f:
+            mapping = json.load(f)
+        logger.info(f"🔄 Loaded class mapping with {len(mapping)} entries")
+        return mapping
+    return None
+
+def apply_class_mapping(labels, class_mapping):
+    """Apply class name mapping to predicted labels."""
+    if class_mapping is None:
+        return labels
+    return [class_mapping.get(label, label) for label in labels]
+
 def infer_model_classes(raw_predictions, dataset_name):
     """
     Attempt to infer model classes by looking at common dataset schemas.
@@ -136,16 +154,16 @@ def infer_model_classes(raw_predictions, dataset_name):
     if 'consumer_complaints' in dataset_name.lower():
         # These are the most common 10 classes in the consumer complaints dataset
         common_classes = [
-            'Credit card',
-            'Mortgage',
-            'Bank account or service',
-            'Credit reporting',
+            'Credit reporting, credit repair services, or other personal consumer reports',
             'Debt collection',
+            'Credit card or prepaid card',
+            'Checking or savings account',
+            'Mortgage',
+            'Credit card',
+            'Bank account or service',
             'Student loan',
-            'Consumer Loan',
-            'Money transfer',
-            'Personal loan',
-            'Other'
+            'Vehicle loan or lease',
+            'Money transfer, virtual currency, or money service'
         ]
         logger.warning(f"⚠️ Using inferred top-10 classes for consumer_complaints dataset")
         logger.warning(f"⚠️ For accurate results, provide --model-classes or --model-classes-file")
@@ -153,7 +171,7 @@ def infer_model_classes(raw_predictions, dataset_name):
     
     return None
 
-def parse_predictions(raw_predictions, model_classes, prediction_threshold=0.5, top_k=None):
+def parse_predictions(raw_predictions, model_classes, prediction_threshold=0.3, top_k=None):
     """
     Converts raw Vertex AI predictions (probabilities/scores) to label lists.
     
@@ -201,7 +219,7 @@ def parse_predictions(raw_predictions, model_classes, prediction_threshold=0.5, 
         # Convert scores to labels
         if top_k is not None:
             # Select top-k highest scoring labels
-            top_indices = np.argsort(scores)[-top_k:]
+            top_indices = np.argsort(scores)[-top_k:][::-1]  # Reverse to get highest first
             selected_labels = [labels[i] for i in top_indices if scores[i] > 0]
         else:
             # Use threshold
@@ -211,13 +229,14 @@ def parse_predictions(raw_predictions, model_classes, prediction_threshold=0.5, 
         if len(selected_labels) == 0:
             max_idx = np.argmax(scores)
             selected_labels = [labels[max_idx]]
-            logger.warning(f"No labels above threshold. Selected highest: {labels[max_idx]} (score: {scores[max_idx]:.4f})")
+            if scores[max_idx] < prediction_threshold:
+                logger.debug(f"No labels above threshold ({prediction_threshold}). Selected highest: {labels[max_idx]} (score: {scores[max_idx]:.4f})")
         
         parsed_predictions.append(selected_labels)
     
     return parsed_predictions
 
-def calculate_metrics(y_true, y_pred_raw, model_classes, threshold, prediction_threshold=0.5, top_k=None):
+def calculate_metrics(y_true, y_pred_raw, model_classes, class_mapping, threshold, prediction_threshold=0.3, top_k=None):
     """Calculates metrics and checks against threshold."""
     
     # First, fit MLB on ground truth to get all possible classes
@@ -225,7 +244,7 @@ def calculate_metrics(y_true, y_pred_raw, model_classes, threshold, prediction_t
     y_true_bin = mlb.fit_transform(y_true)
     
     logger.info(f"📊 Found {len(mlb.classes_)} unique classes in ground truth")
-    logger.info(f"🏷️  Classes: {mlb.classes_[:10]}..." if len(mlb.classes_) > 10 else f"🏷️  Classes: {mlb.classes_}")
+    logger.info(f"🏷️  Ground truth classes: {list(mlb.classes_[:5])}..." if len(mlb.classes_) > 5 else f"🏷️  Classes: {list(mlb.classes_)}")
     
     # Inspect first raw prediction to determine format
     logger.info(f"🔍 Raw prediction format (first sample): {type(y_pred_raw[0])}")
@@ -237,18 +256,30 @@ def calculate_metrics(y_true, y_pred_raw, model_classes, threshold, prediction_t
     
     if model_classes:
         logger.info(f"🎓 Model trained on {len(model_classes)} classes:")
-        logger.info(f"   {model_classes}")
+        logger.info(f"   {model_classes[:5]}..." if len(model_classes) > 5 else f"   {model_classes}")
     
     # Parse predictions from probabilities to labels
     logger.info(f"🎯 Converting predictions using threshold={prediction_threshold}, top_k={top_k}")
-    y_pred = parse_predictions(y_pred_raw, model_classes, prediction_threshold, top_k)
+    y_pred_raw_labels = parse_predictions(y_pred_raw, model_classes, prediction_threshold, top_k)
+    
+    # Apply class mapping if provided
+    if class_mapping:
+        logger.info(f"🔄 Applying class name mapping...")
+        y_pred = [apply_class_mapping(labels, class_mapping) for labels in y_pred_raw_labels]
+    else:
+        y_pred = y_pred_raw_labels
     
     # Log some examples
-    logger.info("\n📋 Sample Predictions (first 3):")
-    for i in range(min(3, len(y_true))):
+    logger.info("\n📋 Sample Predictions (first 5):")
+    for i in range(min(5, len(y_true))):
         logger.info(f"   Sample {i+1}:")
-        logger.info(f"     True: {y_true[i]}")
-        logger.info(f"     Pred: {y_pred[i]}")
+        logger.info(f"     Ground Truth: {y_true[i]}")
+        if class_mapping and y_pred_raw_labels[i] != y_pred[i]:
+            logger.info(f"     Model Output: {y_pred_raw_labels[i]}")
+            logger.info(f"     After Mapping: {y_pred[i]}")
+        else:
+            logger.info(f"     Prediction: {y_pred[i]}")
+        logger.info(f"     Match: {'✅' if set(y_true[i]) == set(y_pred[i]) else '❌'}")
     
     # Transform predictions using the same MLB
     try:
@@ -264,6 +295,7 @@ def calculate_metrics(y_true, y_pred_raw, model_classes, threshold, prediction_t
         missing_labels = all_pred_labels - set(mlb.classes_)
         if missing_labels:
             logger.warning(f"⚠️ Labels in predictions but not in ground truth: {missing_labels}")
+            logger.warning(f"⚠️ This will hurt your F1 score. Check your class mapping!")
         
         mlb = MultiLabelBinarizer()
         all_labels = list(y_true) + list(y_pred)
@@ -278,6 +310,10 @@ def calculate_metrics(y_true, y_pred_raw, model_classes, threshold, prediction_t
     recall = recall_score(y_true_bin, y_pred_bin, average='micro', zero_division=0)
     hamming = hamming_loss(y_true_bin, y_pred_bin)
     
+    # Calculate accuracy (exact match ratio)
+    exact_matches = sum(1 for true, pred in zip(y_true, y_pred) if set(true) == set(pred))
+    accuracy = exact_matches / len(y_true)
+    
     print("\n" + "="*50)
     print(f"📊 Multi-Label Classification Metrics")
     print("="*50)
@@ -285,6 +321,7 @@ def calculate_metrics(y_true, y_pred_raw, model_classes, threshold, prediction_t
     print(f"✅ F1 Score (Macro):     {f1_macro:.4f}")
     print(f"✅ Precision (Micro):    {precision:.4f}")
     print(f"✅ Recall (Micro):       {recall:.4f}")
+    print(f"✅ Exact Match Accuracy: {accuracy:.4f}")
     print(f"✅ Hamming Loss:         {hamming:.4f}")
     print("="*50 + "\n")
 
@@ -297,8 +334,9 @@ def calculate_metrics(y_true, y_pred_raw, model_classes, threshold, prediction_t
 def main():
     args = parse_args()
     
-    # 1. Load model classes
+    # 1. Load model classes and mapping
     model_classes = load_model_classes(args.model_classes, args.model_classes_file)
+    class_mapping = load_class_mapping(args.class_mapping_file)
     
     # 2. Load Data
     df, label_col, instances = load_data(args.dataset, args.split, args.batch_size)
@@ -321,6 +359,7 @@ def main():
         y_true, 
         y_pred_raw,
         model_classes,
+        class_mapping,
         args.alert_threshold,
         args.prediction_threshold,
         args.top_k
