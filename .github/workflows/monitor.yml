@@ -25,13 +25,13 @@ jobs:
     
     - name: Check model performance
       run: |
-        python src/monitoring/check_metrics.py \
+        python src/evaluation/check_metrics.py \
           --environment production \
           --alert-threshold 0.85
     
     - name: Check data drift
       run: |
-        python src/monitoring/check_drift.py \
+        python src/evaluation/check_drift.py \
           --baseline-data gs://${{ secrets.GCS_BUCKET }}/baseline/ \
           --current-data gs://${{ secrets.GCS_BUCKET }}/recent/
     
