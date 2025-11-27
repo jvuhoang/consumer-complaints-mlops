@@ -39,6 +39,7 @@ jobs:
           --project-id ${{ secrets.GCP_PROJECT_ID }} \
           --region "us-central1" \
           --endpoint-id ${{ secrets.VERTEX_ENDPOINT_ID }} \
+          --class-mapping-file config/class_mapping.json \
           --alert-threshold 0.70
     
     - name: Check data drift

@@ -32,8 +32,8 @@ def parse_args():
                         help="Comma-separated list of class names in model output order")
     parser.add_argument("--model-classes-file", type=str, default=None,
                         help="Path to text file with class names (one per line)")
-    parser.add_argument("--class-mapping-file", type=str, required=True,
-                        help="JSON file mapping test labels to model classes (REQUIRED)")
+    parser.add_argument("--class-mapping-file", type=str, default=None,
+                        help="JSON file mapping test labels to model classes")
     
     # Prediction thresholding
     parser.add_argument("--prediction-threshold", type=float, default=0.3, 
@@ -150,8 +150,10 @@ def load_model_classes(model_config, model_classes_arg, model_classes_file):
 def load_class_mapping(class_mapping_file):
     """Load class name mapping from JSON file."""
     if not class_mapping_file:
-        logger.error("❌ --class-mapping-file is REQUIRED for ground truth label conversion")
-        sys.exit(1)
+        logger.warning("⚠️  No --class-mapping-file provided")
+        logger.warning("⚠️  Ground truth labels will NOT be converted to model classes")
+        logger.warning("⚠️  This may cause evaluation errors if label sets don't match")
+        return None
         
     import json
     try:
@@ -299,8 +301,12 @@ def calculate_metrics(y_true_original, y_pred_raw, model_classes, class_mapping,
     logger.info(f"📊 Original ground truth has {len(set([item for sublist in y_true_original for item in sublist]))} unique classes")
     logger.info(f"   Sample original labels: {list(set([item for sublist in y_true_original[:10] for item in sublist]))[:5]}")
     
-    # Convert ground truth to 10 model classes using mapping
-    y_true_converted = convert_ground_truth_to_model_classes(y_true_original, class_mapping, model_classes)
+    # Convert ground truth to 10 model classes using mapping (if mapping provided)
+    if class_mapping:
+        y_true_converted = convert_ground_truth_to_model_classes(y_true_original, class_mapping, model_classes)
+    else:
+        logger.warning("⚠️  Skipping ground truth conversion - no class mapping provided")
+        y_true_converted = y_true_original
     
     # Parse predictions (already in model format, no conversion needed)
     logger.info(f"🎯 Parsing model predictions (threshold={prediction_threshold}, top_k={top_k})")
@@ -405,8 +411,12 @@ def main():
     if len(model_classes) != 10:
         logger.warning(f"⚠️  Expected 10 model classes, but got {len(model_classes)}")
     
-    # 2. Load class mapping (REQUIRED)
+    # 2. Load class mapping (optional but recommended)
     class_mapping = load_class_mapping(args.class_mapping_file)
+    
+    if class_mapping is None:
+        logger.warning("⚠️  Running without class mapping - assuming test labels match model classes")
+        logger.warning("⚠️  For accurate evaluation, provide --class-mapping-file")
     
     # 3. Load Data
     df, label_col, instances = load_data(args.dataset, args.split, args.batch_size)
