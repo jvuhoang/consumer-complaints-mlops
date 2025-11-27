@@ -27,13 +27,13 @@ def parse_args():
     
     # Model Configuration - Supports multiple formats
     parser.add_argument("--model-config", type=str, default=None,
-                        help="Path to model config JSON with id_to_product mapping (preferred)")
+                        help="Path to model config JSON with id_to_product mapping")
     parser.add_argument("--model-classes", type=str, default=None,
                         help="Comma-separated list of class names in model output order")
     parser.add_argument("--model-classes-file", type=str, default=None,
                         help="Path to text file with class names (one per line)")
     parser.add_argument("--class-mapping-file", type=str, default=None,
-                        help="JSON file mapping test labels to model classes")
+                        help="JSON file mapping test labels to model classes (also extracts model classes)")
     
     # Prediction thresholding
     parser.add_argument("--prediction-threshold", type=float, default=0.3, 
@@ -153,20 +153,28 @@ def load_class_mapping(class_mapping_file):
         logger.warning("⚠️  No --class-mapping-file provided")
         logger.warning("⚠️  Ground truth labels will NOT be converted to model classes")
         logger.warning("⚠️  This may cause evaluation errors if label sets don't match")
-        return None
+        return None, None
         
     import json
     try:
         with open(class_mapping_file, 'r') as f:
             mapping = json.load(f)
         logger.info(f"🔄 Loaded class mapping with {len(mapping)} entries from: {class_mapping_file}")
+        
+        # Extract unique model classes (the target values in the mapping)
+        model_classes_from_mapping = sorted(list(set(mapping.values())))
+        logger.info(f"📋 Extracted {len(model_classes_from_mapping)} unique model classes from mapping")
+        
         # Show sample mappings
         sample_items = list(mapping.items())[:3]
         for key, val in sample_items:
             logger.info(f"   '{key}' → '{val}'")
         if len(mapping) > 3:
             logger.info(f"   ... and {len(mapping) - 3} more mappings")
-        return mapping
+        
+        logger.info(f"   Model classes: {model_classes_from_mapping}")
+        
+        return mapping, model_classes_from_mapping
     except FileNotFoundError:
         logger.error(f"Class mapping file not found: {class_mapping_file}")
         sys.exit(1)
@@ -396,27 +404,38 @@ def calculate_metrics(y_true_original, y_pred_raw, model_classes, class_mapping,
 def main():
     args = parse_args()
     
-    # 1. Load model classes (supports multiple formats)
+    # 1. Load class mapping first (can extract model classes from it)
     logger.info("=" * 60)
     logger.info("🚀 Starting Model Evaluation")
     logger.info("=" * 60)
     
+    class_mapping, model_classes_from_mapping = load_class_mapping(args.class_mapping_file)
+    
+    # 2. Load model classes (supports multiple formats, with class_mapping as fallback)
     model_classes = load_model_classes(args.model_config, args.model_classes, args.model_classes_file)
     
+    # If no model classes specified via config/file/arg, use classes from mapping
     if model_classes is None:
-        logger.error("❌ Model classes are REQUIRED for evaluation")
-        logger.error("   Please provide one of: --model-config, --model-classes-file, or --model-classes")
-        sys.exit(1)
-    
-    if len(model_classes) != 10:
-        logger.warning(f"⚠️  Expected 10 model classes, but got {len(model_classes)}")
-    
-    # 2. Load class mapping (optional but recommended)
-    class_mapping = load_class_mapping(args.class_mapping_file)
+        if model_classes_from_mapping is not None:
+            logger.info("✅ Using model classes extracted from class_mapping.json")
+            model_classes = model_classes_from_mapping
+        else:
+            logger.error("❌ Model classes are REQUIRED for evaluation")
+            logger.error("   Please provide one of:")
+            logger.error("   1. --class-mapping-file (will extract model classes from mapping values)")
+            logger.error("   2. --model-config (JSON with id_to_product)")
+            logger.error("   3. --model-classes-file (text file with class names)")
+            logger.error("   4. --model-classes (comma-separated list)")
+            sys.exit(1)
     
     if class_mapping is None:
         logger.warning("⚠️  Running without class mapping - assuming test labels match model classes")
         logger.warning("⚠️  For accurate evaluation, provide --class-mapping-file")
+    
+    logger.info(f"📋 Final model classes ({len(model_classes)}): {model_classes}")
+    
+    if len(model_classes) != 10:
+        logger.warning(f"⚠️  Expected 10 model classes, but got {len(model_classes)}")
     
     # 3. Load Data
     df, label_col, instances = load_data(args.dataset, args.split, args.batch_size)
