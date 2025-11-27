@@ -1,0 +1,27 @@
+{
+  "id_to_product": {
+    "0": "Student loan",
+    "1": "Personal loan",
+    "2": "Other",
+    "3": "Mortgage",
+    "4": "Money transfer",
+    "5": "Debt collection",
+    "6": "Credit reporting",
+    "7": "Credit card",
+    "8": "Consumer Loan",
+    "9": "Bank account or service"
+  },
+  "product_to_id": {
+    "Student loan": 0,
+    "Personal loan": 1,
+    "Other": 2,
+    "Mortgage": 3,
+    "Money transfer": 4,
+    "Debt collection": 5,
+    "Credit reporting": 6,
+    "Credit card": 7,
+    "Consumer Loan": 8,
+    "Bank account or service": 9
+  },
+  "num_classes": 10
+}
