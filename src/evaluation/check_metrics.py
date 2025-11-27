@@ -423,12 +423,11 @@ def main():
     df, label_col, instances = load_data(args.dataset, args.split, args.batch_size)
     y_true = df[label_col].tolist()
 
-    # --- 🚨 FIX START: Normalize Ground Truth Labels ---
+    # --- 🚨 FIX: Normalize Ground Truth Labels (ONLY y_true) ---
     if class_mapping:
         logger.info("🔄 Applying class mapping to Ground Truth (y_true)...")
         # Ensure y_true format matches what apply_class_mapping expects (list of lists)
         y_true = apply_class_mapping(y_true, class_mapping)
-    # --- 🚨 FIX END ---
 
     # 4. Infer classes if not provided (Fallback)
     if not model_classes:
@@ -438,17 +437,19 @@ def main():
             model_classes = sorted(list(set(class_mapping.values())))
         else:
             model_classes = infer_model_classes(None, args.dataset)
-            
+    
+    # Safety check
+    if not model_classes:
+        logger.error("❌ Could not determine model classes!")
+        sys.exit(1)
+
     logger.info(f"🎓 Model trained on {len(model_classes)} classes: {model_classes[:5]}...")
 
     # 5. Get Predictions
+    # We assume the model already outputs the correct "Short Names" based on model_classes
     y_pred = get_predictions(args.project_id, args.region, args.endpoint_id, instances, model_classes)
 
-    # 6. Apply Mapping to Predictions (Just in case model outputs long names, though unlikely now)
-    if class_mapping:
-        logger.info("🔄 Applying class mapping to Predictions (y_pred)...")
-        y_pred = apply_class_mapping(y_pred, class_mapping)
-
+    
     # 7. Validation
     if len(y_true) != len(y_pred):
         logger.error(f"Mismatch: {len(y_true)} true labels vs {len(y_pred)} predictions.")
