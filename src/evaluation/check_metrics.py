@@ -411,37 +411,51 @@ def calculate_metrics(y_true, y_pred_raw, model_classes, class_mapping, threshol
 
 def main():
     args = parse_args()
-    
-    # 1. Load model classes and mapping
-    model_classes = load_model_classes(None, args.model_classes, args.model_classes_file)
+
+    # 1. Load Class Mapping
     class_mapping = load_class_mapping(args.class_mapping_file)
-    
-    # 2. Load Data
+
+    # 2. Load Model Classes
+    # Pass None as first arg because we aren't using a 'model_config' JSON here
+    model_classes = load_model_classes(None, args.model_classes, args.model_classes_file)
+
+    # 3. Load Data
     df, label_col, instances = load_data(args.dataset, args.split, args.batch_size)
     y_true = df[label_col].tolist()
-    
-    # 3. Get Predictions (raw probabilities/scores)
-    y_pred_raw = get_predictions(args.project_id, args.region, args.endpoint_id, instances)
-    
-    # 4. Infer model classes if not provided
-    if model_classes is None:
-        model_classes = infer_model_classes(y_pred_raw, args.dataset)
-    
-    # 5. Validation
-    if len(y_true) != len(y_pred_raw):
-        logger.error(f"Mismatch: {len(y_true)} true labels vs {len(y_pred_raw)} predictions.")
+
+    # --- 🚨 FIX START: Normalize Ground Truth Labels ---
+    if class_mapping:
+        logger.info("🔄 Applying class mapping to Ground Truth (y_true)...")
+        # Ensure y_true format matches what apply_class_mapping expects (list of lists)
+        y_true = apply_class_mapping(y_true, class_mapping)
+    # --- 🚨 FIX END ---
+
+    # 4. Infer classes if not provided (Fallback)
+    if not model_classes:
+        # We assume the model outputs the SHORT names (the values in your mapping)
+        if class_mapping:
+            # Get the unique Short Names from your mapping file values
+            model_classes = sorted(list(set(class_mapping.values())))
+        else:
+            model_classes = infer_model_classes(None, args.dataset)
+            
+    logger.info(f"🎓 Model trained on {len(model_classes)} classes: {model_classes[:5]}...")
+
+    # 5. Get Predictions
+    y_pred = get_predictions(args.project_id, args.region, args.endpoint_id, instances, model_classes)
+
+    # 6. Apply Mapping to Predictions (Just in case model outputs long names, though unlikely now)
+    if class_mapping:
+        logger.info("🔄 Applying class mapping to Predictions (y_pred)...")
+        y_pred = apply_class_mapping(y_pred, class_mapping)
+
+    # 7. Validation
+    if len(y_true) != len(y_pred):
+        logger.error(f"Mismatch: {len(y_true)} true labels vs {len(y_pred)} predictions.")
         sys.exit(1)
-    
-    # 6. Calculate Metrics (with prediction parsing)
-    calculate_metrics(
-        y_true, 
-        y_pred_raw,
-        model_classes,
-        class_mapping,
-        args.alert_threshold,
-        args.prediction_threshold,
-        args.top_k
-    )
+
+    # 8. Calculate Metrics
+    calculate_metrics(y_true, y_pred, args.alert_threshold)
 
 if __name__ == "__main__":
     main()
