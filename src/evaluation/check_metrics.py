@@ -413,7 +413,7 @@ def main():
     args = parse_args()
     
     # 1. Load model classes and mapping
-    model_classes = load_model_classes(args.model_classes, args.model_classes_file)
+    model_classes = load_model_classes(None, args.model_classes, args.model_classes_file)
     class_mapping = load_class_mapping(args.class_mapping_file)
     
     # 2. Load Data
