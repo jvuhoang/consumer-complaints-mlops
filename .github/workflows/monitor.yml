@@ -40,6 +40,7 @@ jobs:
           --region "us-central1" \
           --endpoint-id ${{ secrets.VERTEX_ENDPOINT_ID }} \
           --class-mapping-file src/evaluation/class_mapping.json \
+          --model-config src/evaluation/model_config.json \
           --alert-threshold 0.70
     
     - name: Check data drift
