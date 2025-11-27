@@ -3,6 +3,7 @@ import sys
 import logging
 import pandas as pd
 import numpy as np
+import json
 from datasets import load_dataset
 from sklearn.preprocessing import MultiLabelBinarizer
 from sklearn.metrics import f1_score, precision_score, recall_score, hamming_loss
@@ -108,60 +109,144 @@ def get_predictions(project_id, region, endpoint_id, instances):
         logger.error(f"Vertex AI Prediction failed: {e}")
         sys.exit(1)
 
-def load_model_classes(model_classes_arg, model_classes_file):
-    """Load the model's class names from argument or file."""
-    if model_classes_arg:
+
+
+def load_model_classes_from_config(config_path):
+    """Load model classes from a JSON config file with id_to_product mapping."""
+    try:
+        with open(config_path, 'r') as f:
+            config = json.load(f)
+        
+        if 'id_to_product' in config:
+            # Sort by ID to ensure correct order
+            id_to_product = config['id_to_product']
+            # Handle string keys like "0", "1"
+            sorted_ids = sorted(id_to_product.keys(), key=lambda x: int(x))
+            classes = [id_to_product[id_str] for id_str in sorted_ids]
+            
+            logger.info(f"📋 Loaded {len(classes)} model classes from config JSON: {config_path}")
+            return classes
+        else:
+            logger.error(f"Config file {config_path} does not contain 'id_to_product' key")
+            sys.exit(1)
+            
+    except Exception as e:
+        logger.error(f"Failed to load classes from config: {e}")
+        sys.exit(1)
+
+def load_model_classes(model_config, model_classes_arg, model_classes_file):
+    """Load the model's class names from various sources."""
+    # Priority: 1. Config JSON, 2. Classes file, 3. Argument
+    if model_config:
+        return load_model_classes_from_config(model_config)
+    elif model_classes_file:
+        try:
+            with open(model_classes_file, 'r') as f:
+                classes = [line.strip() for line in f if line.strip()]
+            logger.info(f"📋 Loaded {len(classes)} model classes from file: {model_classes_file}")
+            return classes
+        except Exception as e:
+            logger.error(f"Error reading model classes file: {e}")
+            sys.exit(1)
+    elif model_classes_arg:
         classes = [c.strip() for c in model_classes_arg.split(',')]
         logger.info(f"📋 Loaded {len(classes)} model classes from argument")
-        return classes
-    elif model_classes_file:
-        with open(model_classes_file, 'r') as f:
-            classes = [line.strip() for line in f if line.strip()]
-        logger.info(f"📋 Loaded {len(classes)} model classes from file: {model_classes_file}")
         return classes
     else:
         return None
 
 def load_class_mapping(class_mapping_file):
     """Load class name mapping from JSON file."""
-    if class_mapping_file:
-        import json
+    if not class_mapping_file:
+        return None
+
+    try:
         with open(class_mapping_file, 'r') as f:
             mapping = json.load(f)
-        logger.info(f"🔄 Loaded class mapping with {len(mapping)} entries")
+        
+        logger.info(f"🔄 Loaded class mapping with {len(mapping)} entries from: {class_mapping_file}")
+        
+        # Validate logic: Show users what will happen
+        sample_items = list(mapping.items())[:3]
+        for key, val in sample_items:
+            logger.info(f"   Mapping: '{key}' → '{val}'")
+            
         return mapping
-    return None
+
+    except FileNotFoundError:
+        logger.error(f"Class mapping file not found: {class_mapping_file}")
+        sys.exit(1)
+    except json.JSONDecodeError as e:
+        logger.error(f"Invalid JSON in class mapping file: {e}")
+        sys.exit(1)
 
 def apply_class_mapping(labels, class_mapping):
-    """Apply class name mapping to predicted labels."""
-    if class_mapping is None:
+    """
+    Apply class name mapping to labels and enforce single-label output.
+    
+    1. Renames long class names (e.g., 'Credit reporting...') to short ones ('Credit reporting').
+    2. Flattens lists: [['Label']] -> ['Label'].
+    """
+    if not labels:
         return labels
-    return [class_mapping.get(label, label) for label in labels]
 
-def infer_model_classes(raw_predictions, dataset_name):
+    # Helper function to safely map a single label
+    def map_single_label(label):
+        if class_mapping:
+            return class_mapping.get(label, label)
+        return label
+
+    # Check structure of the first element
+    first_elem = labels[0]
+
+    if isinstance(first_elem, list):
+        # Case: Nested List (e.g., [['Long Name'], ['Other']])
+        # We enforce SINGLE LABEL by taking the first element of each sub-list
+        processed_labels = []
+        for sample in labels:
+            if len(sample) > 0:
+                # Take the first prediction only
+                mapped = map_single_label(sample[0])
+                processed_labels.append(mapped)
+            else:
+                # Handle empty prediction case
+                processed_labels.append("Unknown")
+        return processed_labels
+    else:
+        # Case: Flat List (e.g., ['Long Name', 'Other'])
+        return [map_single_label(l) for l in labels]
+
+def infer_model_classes(raw_predictions, dataset_name=""):
     """
     Attempt to infer model classes by looking at common dataset schemas.
-    This is a fallback when user doesn't provide class names.
+    Returns the MAPPED (Short) names to match your model output.
     """
-    # Check prediction format
-    first_pred = raw_predictions[0]
-    
-    if isinstance(first_pred, dict) and 'labels' in first_pred:
-        # Model returns label names directly
+    if not raw_predictions:
         return None
-    
-    # For consumer_complaints dataset, use top 10 most common classes
-    if 'consumer_complaints' in dataset_name.lower():
-        # These are the most common 10 classes in the consumer complaints dataset
+
+    # Check if prediction format already contains labels (e.g. dict output)
+    first_pred = raw_predictions[0]
+    if isinstance(first_pred, dict) and 'labels' in first_pred:
+        return None
+
+    # For consumer_complaints dataset fallback
+    if dataset_name and 'consumer_complaints' in dataset_name.lower():
+        # Using the SHORT names (Mapped versions) so they match your model predictions
         common_classes = [
-        'Student loan', 'Personal loan', 'Other', 'Mortgage',
-        'Money transfer', 'Debt collection', 'Credit reporting',
-        'Credit card', 'Consumer Loan', 'Bank account or service'
+            'Credit reporting',            # Mapped from "Credit reporting..."
+            'Debt collection',
+            'Credit card',                 # Mapped from "Credit card or prepaid card"
+            'Bank account or service',     # Mapped from "Checking or savings account"
+            'Mortgage',
+            'Student loan',
+            'Consumer Loan',               # Mapped from "Vehicle loan or lease"
+            'Money transfer',              # Mapped from "Money transfer..."
+            'Personal loan',               # Mapped from "Payday loan..."
+            'Other'                        # Mapped from "Other financial service"
         ]
-        logger.warning(f"⚠️ Using inferred top-10 classes for consumer_complaints dataset")
-        logger.warning(f"⚠️ For accurate results, provide --model-classes or --model-classes-file")
+        logger.warning(f"⚠️ Using inferred top-10 classes (Short Names) for consumer_complaints dataset")
         return common_classes
-    
+
     return None
 
 def parse_predictions(raw_predictions, model_classes, prediction_threshold=0.3, top_k=None):
