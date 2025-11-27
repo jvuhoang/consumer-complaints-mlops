@@ -11,9 +11,9 @@ By using deep learning ([Tensorflow](https://www.tensorflow.org/)/[Keras](https:
       - Standard LSTM: A Long Short-Term Memory network for handling sequential text data.
       - BiLSTM + CNN: A hybrid model combining Bidirectional LSTMs (for past/future context) with Convolutional Neural Networks (for extracting local n-gram features) to maximize classification accuracy.
 
-*   **CI/CD Automation:** GitHub Actions manage the CI/CD process, automatically building the Docker image, pushing it to Google Artifact Registry, and triggering model training/deployment on every code update.
+*   **CI/CD Automation:** GitHub Actions manage the CI/CD process, automate tests, linting and code quality check before deploying model. Pipeline is triggered after every push to the repository. 
 
-*   **Scalable MLOps:** Vertex AI is used for managed model training, hosting a centralized Model Registry, and deploying the prediction model to a scalable, low-latency Endpoint.
+*   **Scalable MLOps:** Vertex AI is used for hosting a centralized Model Registry, and deploying the prediction model to a scalable, low-latency Endpoint.
 
 *   **Data Lake & Persistence:** Google BigQuery serves as the central data warehouse for storing raw consumer complaints, feature data, and final prediction outcomes.
 
@@ -62,7 +62,7 @@ Follow these steps to set up the project locally and connect to your Google Clou
 
 **Prerequisites**
 
-1. Python 3.8+
+1. Python 3.15
 2. A Google Cloud Project with Billing Enabled.
 3. The gcloud CLI installed and authenticated.
 4. Necessary GCP APIs enabled (Vertex AI API, BigQuery API, Cloud Build API, Artifact Registry API).
@@ -92,7 +92,7 @@ The full MLOps pipeline is executed via GitHub Actions:
 1. Commit and push your changes to the main branch on GitHub.
 2. The GitHub Action workflow will:
 *   Run pre-commit hooks (linters, code formatters, unit test).
-*   Trigger a training job (run LSTM and BiLSTM+CNN code).
+*   Trigger a pre-trained model (LSTM and BiLSTM+CNN).
 *   Upload model to Google Cloud.
 *   Register model with Vertex AI. 
 *   Deploy the resulting model to a Vertex AI Endpoint.
@@ -107,13 +107,11 @@ To run the local API that connects to a deployed Vertex AI Endpoint:
 
 ## Model Monitoring
 
-After a model is deployed in for prediction serving, continuous monitoring is set up to ensure that the model continue to perform as expected. Configure [Vertex AI Model Monitoring](https://cloud.google.com/vertex-ai/docs/model-monitoring/overview?hl=nn) for skew and drift detection:
+After a model is deployed in for prediction serving, continuous monitoring is set up to ensure that the model continue to perform as expected. Configure [monitor.yml](https://github.com/jvuhoang/consumer-complaints-mlops/blob/7f9ddef6c70a482398d84939b586c69b9abcdf7f/.github/workflows/monitor.yml) for performance metrics monitoring and drift detection:
 
-1. Set skew and drift threshold.
-2. Create a monitoring job for all the models under and endpoint.
-3. List the monitoring jobs.
-4. List artifacts produced by monitoring job.
-5. Pause and delete the monitoring job.
+1. Set performance metrics and drift threshold.
+2. Set a monitoring frequency (default is every 24 hours).
+3. Create alert if needed.
 
 
 ## Metadata Tracking
