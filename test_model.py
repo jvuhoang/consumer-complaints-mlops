@@ -15,7 +15,6 @@ print("="*80)
 def custom_standardization(input_data):
     """
     Custom text standardization using TensorFlow string ops
-    MUST match the function used during training
     """
     lowercase = tf.strings.lower(input_data)
     no_html = tf.strings.regex_replace(lowercase, '<[^>]+>', ' ')
@@ -27,7 +26,7 @@ def custom_standardization(input_data):
     cleaned = tf.strings.regex_replace(no_punct, r'\s+', ' ')
     return tf.strings.strip(cleaned)
 
-# 1. Load model with custom objects
+# Load model with custom objects
 print("\n1️⃣ Loading model...")
 try:
     model = tf.keras.models.load_model(
@@ -39,7 +38,7 @@ except Exception as e:
     print(f"❌ Error loading model: {e}")
     exit(1)
 
-# 2. Load label mapping
+# Load label mapping
 print("\n2️⃣ Loading label mapping...")
 try:
     with open('models/label_mapping.json', 'r') as f:
@@ -50,7 +49,7 @@ except Exception as e:
     print(f"❌ Error loading labels: {e}")
     exit(1)
 
-# 3. Load metadata
+# Load metadata
 print("\n3️⃣ Loading metadata...")
 try:
     with open('models/model_metadata.json', 'r') as f:
@@ -61,7 +60,7 @@ try:
 except Exception as e:
     print(f"⚠️  Could not load metadata: {e}")
 
-# 4. Test predictions
+# Test predictions
 print("\n4️⃣ Testing predictions...")
 print("="*80)
 

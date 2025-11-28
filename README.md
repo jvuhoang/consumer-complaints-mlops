@@ -84,7 +84,7 @@ Set the following environment variables, typically as secrets in GitHub for CI/C
 | GCP_SERVICE_ACCOUNT | The Service Account email ID on Google Cloud Platform used for operations.  |   
 | GCP_WORKLOAD_IDENTITY_PROVIDER | The full identifier for the GCP Workload Identity Provider (for passwordless auth).   |   
 | GCS_BUCKET | The name of the Google Cloud Storage Bucket used for artifacts.  |   
-
+| VERTEX AI ENDPOINT | ID of Vertex AI Endpoint used to deploy web app  |   
 
 **Step 3: Trigger the MLOps Pipeline**
 

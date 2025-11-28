@@ -1,6 +1,6 @@
 """
 Hybrid training script for consumer complaints classifier
-- Production: Uses pre-trained Colab model (fast, high quality)
+- Production: Uses pre-trained Colab model for fast deployment
 - Development: Can train from scratch with BigQuery data
 """
 
@@ -52,7 +52,7 @@ def parse_args():
 def use_pretrained_model(args):
     """
     Use pre-trained model from Colab
-    Fast deployment strategy - uses high-quality model
+    For fast deployment 
     """
 
     logger.info("=" * 80)

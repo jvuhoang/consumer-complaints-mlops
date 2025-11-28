@@ -213,7 +213,7 @@ def convert_ground_truth_to_model_classes(y_true, class_mapping, model_classes):
             else:
                 unmapped_count += 1
         
-        # Keep samples even if no labels map (will be empty list)
+        # Keep samples even if no labels map 
         if len(converted_labels) == 0 and len(labels) > 0:
             dropped_samples += 1
         y_true_converted.append(converted_labels)
@@ -404,14 +404,14 @@ def calculate_metrics(y_true_original, y_pred_raw, model_classes, class_mapping,
 def main():
     args = parse_args()
     
-    # 1. Load class mapping first (can extract model classes from it)
+    # Load class mapping (can extract model classes from it)
     logger.info("=" * 60)
     logger.info("🚀 Starting Model Evaluation")
     logger.info("=" * 60)
     
     class_mapping, model_classes_from_mapping = load_class_mapping(args.class_mapping_file)
     
-    # 2. Load model classes (supports multiple formats, with class_mapping as fallback)
+    # Load model classes (supports multiple formats, with class_mapping as fallback)
     model_classes = load_model_classes(args.model_config, args.model_classes, args.model_classes_file)
     
     # If no model classes specified via config/file/arg, use classes from mapping
@@ -437,14 +437,14 @@ def main():
     if len(model_classes) != 10:
         logger.warning(f"⚠️  Expected 10 model classes, but got {len(model_classes)}")
     
-    # 3. Load Data
+    # Load Data
     df, label_col, instances = load_data(args.dataset, args.split, args.batch_size)
     y_true = df[label_col].tolist()
     
-    # 4. Get Predictions (raw probabilities/scores)
+    # Get Predictions (raw probabilities/scores)
     y_pred_raw = get_predictions(args.project_id, args.region, args.endpoint_id, instances)
     
-    # 5. Validation
+    # Validation
     if len(y_true) != len(y_pred_raw):
         logger.error(f"Mismatch: {len(y_true)} true labels vs {len(y_pred_raw)} predictions.")
         sys.exit(1)
@@ -453,7 +453,7 @@ def main():
     logger.info("📊 Starting Metric Calculation")
     logger.info("=" * 60)
     
-    # 6. Calculate Metrics (converts ground truth, keeps predictions as-is)
+    # Calculate Metrics (converts ground truth, keeps predictions as-is)
     calculate_metrics(
         y_true, 
         y_pred_raw,

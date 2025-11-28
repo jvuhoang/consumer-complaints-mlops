@@ -1,6 +1,6 @@
 """
 Main training script for consumer complaints classifier
-Can be run locally or on Vertex AI
+Run on Vertex AI
 """
 
 import argparse
@@ -325,7 +325,7 @@ def main():
     logger.info(f"✅ Metadata saved: {metadata_path}")
 
     # =========================================================================
-    # DONE
+    # LOGGING FINAL MESSAGE
     # =========================================================================
     logger.info("\n" + "=" * 80)
     logger.info("🎉 TRAINING PIPELINE COMPLETE!")

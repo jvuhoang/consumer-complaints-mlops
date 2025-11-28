@@ -29,7 +29,7 @@ def load_data(path):
         return df
     except Exception as e:
         logger.error(f"Failed to load data from {path}: {e}")
-        # For the sake of the CI pipeline not crashing on 'simulation' runs:
+        # Prevent CI pipeline from crashing on simulation
         if "gs://" in path:
             logger.warning("⚠️ Could not read GCS path. Are credentials set? Generating DUMMY data for test.")
             return generate_dummy_data()
@@ -158,14 +158,14 @@ def main():
 
     issues_found = False
 
-    # 1. Check Categorical Drift
+    # Check Categorical Drift
     if cat_col:
         if check_categorical_drift(df_base, df_curr, cat_col, args.psi_threshold):
             issues_found = True
     else:
         logger.warning("Skipping categorical drift: No suitable column found.")
 
-    # 2. Check Text/Numerical Drift
+    # Check Text/Numerical Drift
     if text_col:
         if check_text_drift(df_base, df_curr, text_col, args.ks_p_value):
             issues_found = True

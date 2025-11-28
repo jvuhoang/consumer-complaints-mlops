@@ -1,6 +1,5 @@
 """
-Web demo for Consumer Complaints Classifier - Merged Version
-Uses web_demo.py interface with app.py credentials and configuration
+Web demo for Consumer Complaints Classifier using Flask and Vertex AI
 """
 
 import json
@@ -16,12 +15,12 @@ app = Flask(__name__)
 
 print("🔄 Initializing...")
 
-# --- Configuration from app.py ---
+# --- Configuration ---
 PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "project-37461c1b-635d-4cf2-af5")
 LOCATION = os.environ.get("GCP_LOCATION", "us-central1")
 ENDPOINT_ID = os.environ.get("VERTEX_ENDPOINT_ID", "4351135847504936960")
 
-# Category mapping from app.py
+# Category mapping 
 CATEGORY_MAPPING = {
     0: "Student loan",
     1: "Personal loan",
@@ -51,7 +50,7 @@ idx_to_label = CATEGORY_MAPPING
 
 print("✅ Ready!")
 
-# --- HTML from web_demo.py ---
+# --- HTML ---
 HTML = """
 <!DOCTYPE html>
 <html>
@@ -213,7 +212,7 @@ def home():
 
 @app.route("/predict", methods=["POST"])
 def predict():
-    """Prediction endpoint using app.py logic"""
+    """Prediction endpoint"""
     try:
         # Get request data
         data = request.get_json()
@@ -228,10 +227,10 @@ def predict():
 
         print(f"\n🔍 Received: {text[:50]}...")
 
-        # Make prediction using app.py format
+        # Make prediction 
         start = time.time()
         
-        # Use double-nested format for the input (from app.py)
+        # Use double-nested format for the input 
         response = endpoint.predict(instances=[[text]])
         latency = (time.time() - start) * 1000
 
@@ -280,7 +279,7 @@ def predict():
 
 @app.route('/health', methods=['GET'])
 def health_check():
-    """Health check endpoint from app.py"""
+    """Health check endpoint"""
     return jsonify({
         "status": "healthy",
         "service": "consumer-complaints-classifier",
@@ -291,7 +290,7 @@ def health_check():
 
 @app.route('/categories', methods=['GET'])
 def get_categories():
-    """Returns available categories from app.py"""
+    """Returns available categories"""
     return jsonify({
         "categories": CATEGORY_MAPPING,
         "total_categories": len(CATEGORY_MAPPING)

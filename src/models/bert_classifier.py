@@ -4,7 +4,7 @@ import tensorflow_hub as hub
 
 
 def build_bert_classifier(num_classes: int):
-    """Build BERT classifier - extracted from your Colab notebook"""
+    """Build BERT classifier model"""
     
     preprocessor_url = "https://tfhub.dev/tensorflow/bert_en_uncased_preprocess/3"
     encoder_url = "https://tfhub.dev/tensorflow/small_bert/bert_en_uncased_L-4_H-512_A-8/2"

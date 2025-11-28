@@ -1,6 +1,6 @@
 """
 Hybrid training script for consumer complaints classifier
-- Production: Uses pre-trained Colab model (fast, high quality)
+- Production: Uses pre-trained Colab model 
 - Development: Can train from scratch with BigQuery data
 """
 
@@ -52,7 +52,7 @@ def parse_args():
 def use_pretrained_model(args):
     """
     Use pre-trained model from Colab
-    Fast deployment strategy - uses high-quality model
+    Fast deployment strategy for high-quality model BiLSTM+CNN
     """
 
     logger.info("=" * 80)
@@ -130,12 +130,12 @@ def use_pretrained_model(args):
             'model_type': 'BiLSTM+CNN',
             'training_method': 'pre-trained',
             'source': 'Google Colab T4 GPU',
-            'test_accuracy': 0.626,
-            'top3_accuracy': 0.796,
-            'training_samples': 50000,
+            'test_accuracy': 0.533467,
+            'top3_accuracy': 0.828267,
+            'training_samples': 15000,
             'training_epochs': 8,
             'framework': 'tensorflow',
-            'num_classes': 18,
+            'num_classes': 10,
             'deployment_ready': True,
             'timestamp': datetime.now().isoformat()
         }

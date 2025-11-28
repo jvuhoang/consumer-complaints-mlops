@@ -4,8 +4,7 @@ import tensorflow as tf
 import re
 import string
 
-# Ensure the name 'keras' is available for deserialization (some SavedModels reference 'keras')
-# If standalone keras is installed, keep it; otherwise make 'keras' point to tf.keras
+# Attempt to import keras, fallback to tf.keras if not available
 try:
     import keras  # prefer real keras if present
 except Exception:

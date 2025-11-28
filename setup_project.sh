@@ -2,7 +2,6 @@
 
 # ============================================================================
 # Complete Project Setup Script
-# Run this script to setup the entire MLOps project structure
 # ============================================================================
 
 set -e  # Exit on error
@@ -19,7 +18,7 @@ YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
 # ============================================================================
-# STEP 1: CHECK PREREQUISITES
+# CHECK PREREQUISITES
 # ============================================================================
 echo "📋 Step 1: Checking prerequisites..."
 
@@ -51,7 +50,7 @@ echo -e "${GREEN}✅ Prerequisites check complete${NC}"
 echo ""
 
 # ============================================================================
-# STEP 2: CREATE PROJECT STRUCTURE
+# CREATE PROJECT STRUCTURE
 # ============================================================================
 echo "📁 Step 2: Creating project structure..."
 
@@ -75,7 +74,7 @@ echo -e "${GREEN}✅ Project structure created${NC}"
 echo ""
 
 # ============================================================================
-# STEP 3: CREATE CONFIGURATION FILES
+# CREATE CONFIGURATION FILES
 # ============================================================================
 echo "⚙️  Step 3: Creating configuration files..."
 
@@ -362,7 +361,7 @@ echo -e "${GREEN}✅ Configuration files created${NC}"
 echo ""
 
 # ============================================================================
-# STEP 4: CREATE SAMPLE SOURCE FILES
+# CREATE SAMPLE SOURCE FILES
 # ============================================================================
 echo "📝 Step 4: Creating sample source files..."
 
@@ -418,7 +417,7 @@ echo -e "${GREEN}✅ Sample source files created${NC}"
 echo ""
 
 # ============================================================================
-# STEP 5: CREATE SAMPLE TESTS
+# CREATE SAMPLE TESTS
 # ============================================================================
 echo "🧪 Step 5: Creating sample tests..."
 
@@ -475,7 +474,7 @@ echo -e "${GREEN}✅ Sample tests created${NC}"
 echo ""
 
 # ============================================================================
-# STEP 6: CREATE DOCUMENTATION
+# CREATE DOCUMENTATION
 # ============================================================================
 echo "📚 Step 6: Creating documentation..."
 
@@ -527,7 +526,7 @@ echo -e "${GREEN}✅ Documentation created${NC}"
 echo ""
 
 # ============================================================================
-# STEP 7: INITIALIZE GIT
+# INITIALIZE GIT
 # ============================================================================
 echo "🔧 Step 7: Initializing Git repository..."
 
@@ -544,7 +543,7 @@ fi
 echo ""
 
 # ============================================================================
-# STEP 8: CREATE VIRTUAL ENVIRONMENT (OPTIONAL)
+# CREATE VIRTUAL ENVIRONMENT
 # ============================================================================
 echo "🐍 Step 8: Creating virtual environment..."
 

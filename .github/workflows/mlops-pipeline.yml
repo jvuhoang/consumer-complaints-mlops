@@ -294,10 +294,10 @@ jobs:
 
 
           # CRITICAL: Import custom layers before loading the model
-          # Add your project's source code to the path
+          # Add project's source code to the path
           sys.path.insert(0, os.path.join(os.getcwd(), 'src.models')) 
           
-          # Import your custom layer
+          # Import custom layer
           from src.models.use_classifier import USEEmbeddingLayer  # Adjust import path as needed
           
           model_version = "${{ needs.model-training.outputs.model_version }}"
@@ -344,7 +344,7 @@ jobs:
               }
           )
           
-          print(f"Model registered: {vertex_model.resource_name}")  # Changed from model to vertex_model
+          print(f"Model registered: {vertex_model.resource_name}")  
           # Save model resource name
           with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
               f.write(f"model_name={vertex_model.resource_name}\n")

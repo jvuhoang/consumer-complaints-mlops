@@ -358,7 +358,6 @@ def predict_complaint():
         #endpoint = aiplatform.Endpoint(
         #    f"projects/{PROJECT_ID}/locations/{LOCATION}/endpoints/{ENDPOINT_ID}"
         #)
-        # DEBUG: Print what we're using
         endpoint_resource_name = f"projects/{PROJECT_ID}/locations/{LOCATION}/endpoints/{ENDPOINT_ID}"
         print(f"DEBUG - PROJECT_ID: {PROJECT_ID}")
         print(f"DEBUG - LOCATION: {LOCATION}")
@@ -368,13 +367,6 @@ def predict_complaint():
         # Call Vertex AI Endpoint
         endpoint = aiplatform.Endpoint(endpoint_resource_name)
 
-        #response = endpoint.predict(instances=[{"text": complaint_text}])
-        # Ensure it's a plain string
-        #response = endpoint.predict(instances=[complaint_text])
-        #predictions = response.predictions
-        
-        # Try different instance formats based on your model's expectations
-        # Option 1: Plain string in array (current approach)
         # Use double-nested format for the input
         response = endpoint.predict(instances=[[complaint_text]])
         predictions = response.predictions

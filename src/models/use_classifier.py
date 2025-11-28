@@ -21,7 +21,6 @@ class USEEmbeddingLayer(layers.Layer):
 def build_use_classifier(num_classes):
     """
     Build a text classifier using Universal Sentence Encoder
-    This is fast and accurate - great for prototyping!
     """
     # Universal Sentence Encoder from TensorFlow Hub via custom layer
     text_input = layers.Input(shape=(), dtype=tf.string, name='text')

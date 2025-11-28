@@ -1,6 +1,8 @@
 __pycache__/
 *.pyc
+docs/
 venv/
+notebooks/
 *.h5
 *.pkl
 logs/
