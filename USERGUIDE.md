@@ -8,7 +8,7 @@ This project utilizes TensorFlow/Keras for Deep Learning (LSTM & BiLSTM+CNN), Go
 
 ## 1. Environment & Infrastructure Setup
 
-**1.1. Prerequisites**
+### **1.1. Prerequisites**
 Ensure your local or cloud environment meets the following requirements:
 *   Python: Version 3.11+
 *   Google Cloud Platform (GCP):
@@ -55,7 +55,7 @@ Ensure your local or cloud environment meets the following requirements:
 **Vertex AI Endpoint** deployed with your model
 
 
-**1.2. Dataset Information**
+### **1.2. Dataset Information**
 
 The model is trained on the Consumer Finance Complaints dataset.
 
@@ -74,14 +74,14 @@ The model is trained on the Consumer Finance Complaints dataset.
 
 ## 2. Configuration & Credentials
 
-**2.1: Clone the Repository**
+### **2.1: Clone the Repository**
 
 ```bash
 git clone https://github.com/jvuhoang/consumer-complaints-mlops.git
 cd consumer-complaints-mlops
 ```
 
-**2.2: Create Python Virtual Environment**
+### **2.2: Create Python Virtual Environment**
 
 **On macOS/Linux:**
 ```bash
@@ -103,7 +103,7 @@ venv\Scripts\activate
 
 **Verify activation** - you should see `(venv)` at the beginning of your terminal prompt.
 
-**2.3: Install Python Dependencies**
+### **2.3: Install Python Dependencies**
 
 ```bash
 # Upgrade pip
@@ -116,7 +116,7 @@ pip install -r requirements.txt
 pip install -r requirements-dev.txt
 ```
 
-**2.4: Authenticate with Google Cloud**
+### **2.4: Authenticate with Google Cloud**
 
 **Option A: Using gcloud CLI (Recommended for Local Development)**
 
@@ -163,7 +163,7 @@ c. Download the service account key:
 **SECURITY WARNING**: Never commit the `credentials/` directory to git!
 
 
-**2.5 Configure Environment Variables**
+### **2.5 Configure Environment Variables**
 
 To enable the CI/CD pipeline and local development, you must configure the following environment variables. For GitHub Actions, add these as Repository Secrets.
 
@@ -225,7 +225,7 @@ gcloud ai endpoints list --region=us-central1
 # Format: projects/PROJECT_NUMBER/locations/REGION/endpoints/ENDPOINT_ID
 ```
 
-### Step 6: Verify Setup
+### **2.6 Verify Setup**
 
 Run the verification script to check all configurations:
 
@@ -252,11 +252,9 @@ Setup verification complete!')
 "
 ```
 
----
+### **2.7 Running the Application**
 
-## 🏃 Running the Application
-
-### Start the Flask Application
+Start the Flask Application
 
 ```bash
 # Ensure virtual environment is activated
@@ -266,7 +264,7 @@ Setup verification complete!')
 python app.py
 ```
 
-**Expected output:**
+Expected output:
 ```
  * Serving Flask app 'app'
  * Debug mode: on
@@ -281,7 +279,7 @@ Press CTRL+C to quit
 
 The pipeline is fully automated via GitHub Actions. It is triggered automatically when code is pushed to the main branch.
 
-**3.1. Pipeline Stages**
+### **3.1. Pipeline Stages**
 
 1. Pre-commit Hooks:
 *   Runs linters and code formatters.
@@ -309,17 +307,18 @@ The pipeline is fully automated via GitHub Actions. It is triggered automaticall
 ## 4. Local Testing & Prediction Server
 
 To test the application logic locally or run the web interface:
-**4.1. Install Dependencies:**
+
+### **4.1. Install Dependencies:**
 ```bash
 pip install -r requirements.txt
 ```
 
-**4.2. Configure Endpoint: Set the ID of your deployed Vertex AI endpoint.**
+### **4.2. Configure Endpoint: Set the ID of your deployed Vertex AI endpoint.**
 ```bash
 export VERTEX_ENDPOINT_ID=<Your_Endpoint_ID>
 ```
 
-**4.3. Run the Flask App:**
+### **4.3. Run the Flask App:**
 ```bash
 python app.py
 ```
@@ -330,7 +329,7 @@ The application will launch, allowing you to send complaint text and receive cat
 
 ## 5. Model Monitoring & Metadata
 
-### GitHub Actions Workflow
+### 5.1 GitHub Actions Workflow
 
 The project includes automated CI/CD pipelines in `.github/workflows/`:
 
@@ -350,7 +349,7 @@ b.**`monitor.yml`**: Runs on schedule (daily)
 
 
 
-### Vertex AI Monitoring
+### 5.2 Vertex AI Monitoring
 
 ```bash
 # View endpoint metrics
@@ -363,7 +362,7 @@ gcloud ai models list \
   --filter="displayName:consumer-complaints"
 ```
 
-### BigQuery Analytics
+### 5.3 BigQuery Analytics
 
 Query prediction logs:
 
