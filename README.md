@@ -3,7 +3,7 @@
 ## Project Overview
 This project implements a scalable, end-to-end Machine Learning Operations (MLOps) pipeline for multi-class classification of consumer complaints. The primary goal is to automatically predict the correct category of a new complaint, enabling financial institutions to route the customer immediately to the correct internal department (e.g., Credit Card, Mortgage, Debt Collection).
 
-By using deep learning ([Tensorflow](https://www.tensorflow.org/)/[Keras](https://keras.io/)), [Google Cloud services](https://console.cloud.google.com), and [Vertex AI](https://cloud.google.com/vertex-ai) platform the system ensures highly accurate predictions. It leverages a Standard LSTM for baseline sequence modeling and an Advanced BiLSTM + CNN hybrid architecture to capture both long-term dependencies and local textual features.
+By using deep learning ([Tensorflow](https://www.tensorflow.org/)/[Keras](https://keras.io/)), (LSTM and BiLSTM+CNN architectures), [Google Cloud Platform](https://console.cloud.google.com), and [Vertex AI](https://cloud.google.com/vertex-ai) platform the system ensures highly accurate predictions. It leverages a Standard LSTM for baseline sequence modeling and an Advanced BiLSTM + CNN hybrid architecture to capture both long-term dependencies and local textual features.
 
 
 ## Key Features
@@ -46,15 +46,35 @@ Nearly 278k records (rows)
 *   Consumer disputed
 *   Complaint ID
 
-## Technology Stack
 
-| Category    | Technology           | Purpose |
-| :------------- |:-------------:| :---------------------------:|
-| ML Framework   | TensorFlow, Keras | Development of LSTM and BiLSTM+CNN models. |
-| Cloud Platform     | Google Cloud Console     |   Primary cloud environment and resource management. |
-| Data Warehouse | Google BigQuery    |   Model Registry, Model Training, and scalable Prediction Endpoints. |
-| CI/CD | GitHub, Git Actions | DSource control and automated build/deploy workflows. |
-| Application Layer    | Flask     |  Lightweight Python web framework for the prediction API. |
+## 🏗️ Architecture
+
+```
+User Request
+    ↓
+Flask API (app.py)
+    ↓
+Google Cloud Vertex AI Endpoint
+    ↓
+ML Model (BiLSTM+CNN / LSTM)
+    ↓
+Prediction Result
+    ↓
+BigQuery (Optional logging)
+```
+
+**Technology Stack:**
+
+| Component | Technology | Purpose |
+|-----------|-----------|---------|
+| ML Framework | TensorFlow 2.15, Keras | Model development and training |
+| Cloud Platform | Google Cloud Platform | Infrastructure and services |
+| ML Platform | Vertex AI | Model registry and serving |
+| Data Warehouse | BigQuery | Data storage and analytics |
+| API Framework | Flask | Web API for predictions |
+| CI/CD | GitHub Actions | Automated testing and deployment |
+
+---
 
 
 ## Quick Start Setup
@@ -62,7 +82,7 @@ Follow these steps to set up the project locally and connect to your Google Clou
 
 **Prerequisites**
 
-1. Python 3.15
+1. Python 3.11
 2. A Google Cloud Project with Billing Enabled.
 3. The gcloud CLI installed and authenticated.
 4. Necessary GCP APIs enabled (Vertex AI API, BigQuery API, Cloud Build API, Artifact Registry API).
