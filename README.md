@@ -5,7 +5,6 @@ This project implements a scalable, end-to-end Machine Learning Operations (MLOp
 
 By using deep learning ([Tensorflow](https://www.tensorflow.org/)/[Keras](https://keras.io/)), (LSTM and BiLSTM+CNN architectures), [Google Cloud Platform](https://console.cloud.google.com), and [Vertex AI](https://cloud.google.com/vertex-ai) platform the system ensures highly accurate predictions. It leverages a Standard LSTM for baseline sequence modeling and an Advanced BiLSTM + CNN hybrid architecture to capture both long-term dependencies and local textual features.
 
-
 ## Key Features
 *   **Advanced NLP Architectures:** Implements two specific deep learning strategies using TensorFlow/Keras:
       - Standard LSTM: A Long Short-Term Memory network for handling sequential text data.
@@ -139,7 +138,10 @@ After a model is deployed in for prediction serving, continuous monitoring is se
 Parameters, metrics, artifacts and metadata stored by `Vertex AI` in [Cloud Console](https://console.cloud.google.com/vertex-ai).
 
 
-## User Guide: 
+## User Guide 
 
 For detailed instructions on setting up the GCP infrastructure, creating BigQuery tables, and configuring GitHub Actions for CI/CD, please refer to the comprehensive [USER_GUIDE.md](https://github.com/jvuhoang/consumer-complaints-mlops/blob/main/USERGUIDE.md).
 
+
+## Python Notebook for Model Training
+Python Notebook: [DTI6302_Consumer_Complaints_TensorFlow.ipynb] (https://github.com/jvuhoang/consumer-complaints-mlops/blob/main/DTI6302_Consumer_Complaints_TensorFlow-2.ipynb)
