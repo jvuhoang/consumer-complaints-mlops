@@ -144,4 +144,4 @@ For detailed instructions on setting up the GCP infrastructure, creating BigQuer
 
 
 ## Python Notebook for Model Training
-Python Notebook: [DTI6302_Consumer_Complaints_TensorFlow.ipynb] (https://github.com/jvuhoang/consumer-complaints-mlops/blob/main/DTI6302_Consumer_Complaints_TensorFlow-2.ipynb)
+Python Notebook: [DTI6302_Consumer_Complaints_TensorFlow.ipynb](https://github.com/jvuhoang/consumer-complaints-mlops/blob/main/DTI6302_Consumer_Complaints_TensorFlow-2.ipynb)
