@@ -46,7 +46,7 @@ Nearly 278k records (rows)
 *   Complaint ID
 
 
-## 🏗️ Architecture
+## Architecture
 
 ```
 User Request
